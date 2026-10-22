@@ -2,6 +2,7 @@
 import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.7.0/bundle.js";
 const $ = id => document.getElementById(id);
 let transport = null, loader = null, port = null, busy = false, rowId = 0;
+let selectedProject = null, selectedRelease = null, officialCatalog = null;
 const logEl = $("activityLog");
 function log(message) {
   const time = new Date().toLocaleTimeString();
@@ -17,6 +18,9 @@ function sync() {
   $("eraseBtn").disabled = busy || !connected;
   $("resetBtn").disabled = busy || !connected;
   $("addFileBtn").disabled = busy;
+  if ($("officialConnectBtn")) $("officialConnectBtn").disabled = busy || connected || !("serial" in navigator);
+  if ($("officialInstallBtn")) $("officialInstallBtn").disabled = busy || !connected || !selectedRelease;
+  if ($("officialDeviceStatus")) $("officialDeviceStatus").textContent = connected ? $("detectedChip").textContent : busy ? "Connecting / programming…" : "No device connected.";
   $("deviceStatus").textContent = busy ? "Working…" : connected ? "Connected" : "Disconnected";
   document.querySelectorAll(".filerows input,.filerows button,.settingsgrid select,#baud").forEach(el => el.disabled = busy);
 }
@@ -160,3 +164,108 @@ $("resetBtn").addEventListener("click",()=>action(async()=>{
 $("clearLogBtn").addEventListener("click",()=>{logEl.textContent="Log cleared.";});
 if(!("serial" in navigator))log("Web Serial is unavailable. Open this page via HTTPS in desktop Chrome or Edge.");
 sync();
+
+
+// Official firmware installer. Catalog entries remain unavailable until signed-off images are published.
+const projectsEl=$("officialDevices");
+const releaseEl=$("officialRelease");
+function getChipFamily(){
+  const label=$("detectedChip").textContent;
+  if(/^ESP8266\b/.test(label))return "ESP8266";
+  if(/^ESP32(?:-D|-W| \(|\b)/.test(label) && !/^ESP32-(?:S2|S3|C2|C3|C5|C6|H2|P4)\b/.test(label))return "ESP32";
+  const other=label.match(/^ESP32-(?:S2|S3|C2|C3|C5|C6|H2|P4)\b/);
+  return other?.[0] ?? "UNKNOWN";
+}
+function hex(b){return Array.from(b).map(x=>x.toString(16).padStart(2,"0")).join("");}
+function catalogUpdate(){
+  projectsEl.replaceChildren();
+  const projects=officialCatalog?.projects ?? [];
+  for(const project of projects){
+    const btn=document.createElement("button");
+    btn.type="button";btn.className="device"+(project.id===selectedProject?.id?" chosen":"");
+    btn.innerHTML='<span class="deviceicon">ESP</span><span><strong></strong><small></small></span><span class="tick">✓</span>';
+    btn.querySelector("strong").textContent=project.name;
+    btn.querySelector("small").textContent=project.chipFamily+" · "+(project.releases?.length ? "Firmware available" : "Coming soon");
+    btn.addEventListener("click",()=>{selectedProject=project;selectedRelease=null;catalogUpdate();});
+    projectsEl.append(btn);
+  }
+  if(!selectedProject && projects.length) selectedProject=projects[0];
+  // Rebuild one time to ensure the default selection is marked.
+  if(!projectsEl.querySelector(".chosen") && selectedProject)projectsEl.querySelector(".device")?.classList.add("chosen");
+  $("officialProjectName").textContent=selectedProject?.name ?? "No official projects";
+  $("officialDescription").textContent=selectedProject?.description ?? "Catalog not available.";
+  const releases=(selectedProject?.releases ?? []).filter(r=>r.published===true);
+  releaseEl.replaceChildren();
+  if(!releases.length){
+    releaseEl.add(new Option("No published firmware yet",""));
+    releaseEl.disabled=true;
+    $("officialState").textContent="COMING SOON";
+    $("officialNotice").textContent="This project does not have a verified official firmware yet. Advanced Flasher can still install a local BIN/DGV file.";
+  }else{
+    releaseEl.disabled=false;
+    for(const release of releases)releaseEl.add(new Option(release.version+" · "+(release.channel||"stable"),release.version));
+    selectedRelease=releases.find(r=>r.version===releaseEl.value)??releases[0];
+    $("officialState").textContent="AVAILABLE";
+    $("officialNotice").textContent="Installing a merged firmware may overwrite calibration, Wi-Fi credentials and saved settings. Verify the connected hardware before installing.";
+  }
+  $("officialCompatibility").textContent=selectedProject?"Required chip: "+selectedProject.chipFamily+" · "+(selectedRelease?.parts?.length||0)+" firmware image(s)":"Select a project.";
+  sync();
+}
+releaseEl.addEventListener("change",()=>{
+  selectedRelease=(selectedProject?.releases??[]).find(r=>r.version===releaseEl.value && r.published===true)??null;
+  catalogUpdate();
+});
+$("officialConnectBtn").addEventListener("click",()=> $("connectBtn").click());
+$("officialInstallBtn").addEventListener("click",()=>action(async()=>{
+  if(!selectedProject || !selectedRelease || selectedRelease.published!==true)throw Error("No official firmware available.");
+  const family=getChipFamily();
+  if(family!==selectedProject.chipFamily)throw Error("Chip mismatch. Connected "+family+", expected "+selectedProject.chipFamily+".");
+  const parts=selectedRelease.parts;
+  if(!Array.isArray(parts)||!parts.length)throw Error("Release has no firmware images.");
+  const fileArray=[];
+  for(const part of parts){
+    if(!Number.isSafeInteger(part.offset)||part.offset<0||part.offset%4096!==0)throw Error("Invalid release flash address.");
+    if(typeof part.path!=="string" || !part.path.startsWith("./firmware/") || part.path.includes(".."))throw Error("Firmware must be hosted under ./firmware/.");
+    if(!/^[0-9a-f]{64}$/i.test(part.sha256||""))throw Error("Missing SHA-256 for official firmware.");
+    const response=await fetch(part.path,{cache:"no-store"});
+    if(!response.ok)throw Error("Firmware download failed: HTTP "+response.status);
+    const data=new Uint8Array(await response.arrayBuffer());
+    if(data.length===0||data.length>32*1024*1024)throw Error("Invalid firmware size.");
+    const digest=hex(new Uint8Array(await crypto.subtle.digest("SHA-256",data)));
+    if(digest.toLowerCase()!==part.sha256.toLowerCase())throw Error("SHA-256 mismatch: firmware image is not verified.");
+    fileArray.push({address:part.offset,data});
+  }
+  fileArray.sort((a,b)=>a.address-b.address);
+  for(let i=1;i<fileArray.length;i++)if(fileArray[i].address<fileArray[i-1].address+fileArray[i-1].data.length)throw Error("Overlapping official firmware parts.");
+  const descriptions=fileArray.map(f=>"0x"+f.address.toString(16)+" ("+f.data.length+" bytes)").join("\n");
+  if(!confirm("Install official "+selectedProject.name+" firmware "+selectedRelease.version+"?\n\nConnected: "+$("detectedChip").textContent+"\n\n"+descriptions+"\n\nThis may overwrite device settings. Continue?"))return;
+  log("Official install: "+selectedProject.name+" "+selectedRelease.version+" SHA-256 verified.");
+  const sizes=fileArray.map(f=>f.data.length),progress=sizes.map(()=>0);
+  $("officialProgress").value=0;$("officialProgressLabel").textContent="0%";
+  await loader.writeFlash({
+    fileArray,flashMode:"keep",flashFreq:"keep",flashSize:"keep",eraseAll:false,compress:true,
+    reportProgress:(i,done,total)=>{
+      progress[i]=Math.min(done,total);
+      const pct=Math.floor(100*progress.reduce((a,b)=>a+b,0)/sizes.reduce((a,b)=>a+b,0));
+      $("officialProgress").value=pct;$("officialProgressLabel").textContent=pct+"%";
+    }
+  });
+  $("officialProgress").value=100;$("officialProgressLabel").textContent="100%";
+  log("Official firmware write completed. Reset device and verify normal startup.");
+}));
+async function loadCatalog(){
+  try{
+    const response=await fetch("./firmware/catalog.json",{cache:"no-store"});
+    if(!response.ok)throw Error("HTTP "+response.status);
+    const data=await response.json();
+    if(data.schemaVersion!==1||!Array.isArray(data.projects))throw Error("Unsupported catalog schema.");
+    officialCatalog=data;
+    selectedProject=data.projects[0]??null;
+    catalogUpdate();
+  }catch(e){
+    $("officialProjectName").textContent="Catalog unavailable";
+    $("officialNotice").textContent="Cannot load official catalog: "+e.message;
+    log("Catalog error: "+e.message);
+  }
+}
+loadCatalog();
