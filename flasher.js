@@ -3,6 +3,7 @@ import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.7.0/bundle.
 const $ = id => document.getElementById(id);
 let transport = null, loader = null, port = null, busy = false, rowId = 0;
 let selectedProject = null, selectedRelease = null, officialCatalog = null;
+let unplugged = false;
 const logEl = $("activityLog");
 function log(message) {
   const time = new Date().toLocaleTimeString();
@@ -10,8 +11,28 @@ function log(message) {
   if (logEl.textContent.length > 70000) logEl.textContent = logEl.textContent.slice(-60000);
   logEl.scrollTop = logEl.scrollHeight;
 }
+function showResult(id, state, heading, message) {
+ const el=$(id);el.hidden=false;el.className="flash-result "+state;el.replaceChildren();
+ const strong=document.createElement("strong");strong.textContent=heading;
+ const p=document.createElement("p");p.textContent=message;el.append(strong,p);
+}
+function clearResult(id){$(id).hidden=true;$(id).replaceChildren();}
+async function autoReset(){
+ if(!loader||unplugged)return "USB disconnected; reconnect and reset manually.";
+ try{await loader.after("hard_reset");log("Automatic reset signal sent (RTS).");return "Automatic reset requested. Check normal device startup.";}
+ catch(e){log("Automatic reset failed: "+(e.message||e));return "Press EN/RST to restart the board.";}
+}
+function lostConnection(message){
+ if(unplugged)return;
+ unplugged=true; loader=null;transport=null;port=null;
+ $("detectedChip").textContent="USB disconnected. Reconnect to continue.";
+ log(message);
+ showResult("advancedResult","warning","USB disconnected","Reconnect the board before the next operation.");
+ showResult("officialResult","warning","USB disconnected","Reconnect the board before the next operation.");
+ sync();
+}
 function sync() {
-  const connected = !!loader;
+  const connected = !!loader && !unplugged;
   $("connectBtn").disabled = busy || connected || !("serial" in navigator);
   $("disconnectBtn").disabled = busy || !transport;
   $("flashBtn").disabled = busy || !connected;
@@ -35,17 +56,19 @@ async function disconnect() {
     transport = null;
     loader = null;
     port = null;
+    unplugged=false;
     $("detectedChip").textContent = "Connect an ESP device via USB.";
     sync();
   }
 }
 $("connectBtn").addEventListener("click", async () => {
   if (!("serial" in navigator)) return log("Web Serial unavailable: use Chrome or Edge desktop over HTTPS.");
-  busy = true; sync();
+  busy = true; unplugged=false; sync();
   try {
     log("Select a serial port in the browser dialog.");
     port = await navigator.serial.requestPort();
     transport = new Transport(port, true);
+    transport.setDeviceLostCallback?.(()=>lostConnection("USB connection lost during serial communication."));
     loader = new ESPLoader({ transport, baudrate: Number($("baud").value), terminal, debugLogging: false });
     const chipName = await loader.main();
     $("detectedChip").textContent = chipName + " · " + $("baud").value + " baud";
@@ -107,10 +130,13 @@ function collectMetadata(){
 async function action(fn){
   if(!loader || busy) return;
   busy=true;sync();
-  try{await fn();}catch(e){log("ERROR: "+(e.message||e));}
+  try{await fn();}catch(e){const message=e.message||String(e); log("ERROR: "+message);
+    showResult($("officialPanel").classList.contains("hidden")?"advancedResult":"officialResult","error","Operation failed",message);
+  }
   finally{busy=false;sync();}
 }
 $("flashBtn").addEventListener("click",()=>action(async()=>{
+  clearResult("advancedResult");
   const metadata=collectMetadata();
   const summary=metadata.map(f=>f.file.name+" at 0x"+f.address.toString(16)+" ("+f.file.size+" bytes)").join("\n");
   const approved=confirm("WARNING: Flashing may overwrite firmware and settings. Verify chip family and offsets.\n\n"+summary+"\n\nContinue with flashing?");
@@ -132,6 +158,7 @@ $("flashBtn").addEventListener("click",()=>action(async()=>{
   }
   $("flashProgress").value=0;$("progressLabel").textContent="0%";
   log("Writing "+fileArray.length+" firmware image(s)...");
+  const started=performance.now();
   const totals=fileArray.map(x=>x.data.length);
   const written=totals.map(()=>0);
   await loader.writeFlash({
@@ -148,7 +175,11 @@ $("flashBtn").addEventListener("click",()=>action(async()=>{
     }
   });
   $("flashProgress").value=100;$("progressLabel").textContent="100%";
-  log("Flash operation completed. Reset the device to boot the firmware.");
+  log("Flash operation completed.");
+  const elapsed=performance.now()-started;
+  const resetMessage=await autoReset();
+  showResult("advancedResult","success","Firmware write completed",
+    metadata.map(x=>x.file.name).join(", ")+" · "+totals.reduce((a,b)=>a+b,0).toLocaleString()+" bytes · "+(elapsed/1000).toFixed(1)+" s. "+resetMessage+" Application startup is not automatically verified.");
 }));
 $("eraseBtn").addEventListener("click",()=>action(async()=>{
   if(!confirm("ERASE ALL FLASH? This permanently deletes firmware, preferences, calibration and stored data on the connected chip."))return;
@@ -217,6 +248,7 @@ releaseEl.addEventListener("change",()=>{
 });
 $("officialConnectBtn").addEventListener("click",()=> $("connectBtn").click());
 $("officialInstallBtn").addEventListener("click",()=>action(async()=>{
+  clearResult("officialResult");
   if(!selectedProject || !selectedRelease || selectedRelease.published!==true)throw Error("No official firmware available.");
   const family=getChipFamily();
   if(family!==selectedProject.chipFamily)throw Error("Chip mismatch. Connected "+family+", expected "+selectedProject.chipFamily+".");
@@ -240,6 +272,7 @@ $("officialInstallBtn").addEventListener("click",()=>action(async()=>{
   const descriptions=fileArray.map(f=>"0x"+f.address.toString(16)+" ("+f.data.length+" bytes)").join("\n");
   if(!confirm("Install official "+selectedProject.name+" firmware "+selectedRelease.version+"?\n\nConnected: "+$("detectedChip").textContent+"\n\n"+descriptions+"\n\nThis may overwrite device settings. Continue?"))return;
   log("Official install: "+selectedProject.name+" "+selectedRelease.version+" SHA-256 verified.");
+  const started=performance.now();
   const sizes=fileArray.map(f=>f.data.length),progress=sizes.map(()=>0);
   $("officialProgress").value=0;$("officialProgressLabel").textContent="0%";
   await loader.writeFlash({
@@ -251,7 +284,11 @@ $("officialInstallBtn").addEventListener("click",()=>action(async()=>{
     }
   });
   $("officialProgress").value=100;$("officialProgressLabel").textContent="100%";
-  log("Official firmware write completed. Reset device and verify normal startup.");
+  log("Official firmware write completed.");
+  const elapsed=performance.now()-started;
+  const resetMessage=await autoReset();
+  showResult("officialResult","success","Firmware write completed",
+    selectedProject.name+" v"+selectedRelease.version+" · "+sizes.reduce((a,b)=>a+b,0).toLocaleString()+" bytes · "+(elapsed/1000).toFixed(1)+" s. "+resetMessage+" Application startup is not automatically verified.");
 }));
 async function loadCatalog(){
   try{
@@ -269,3 +306,9 @@ async function loadCatalog(){
   }
 }
 loadCatalog();
+
+if("serial" in navigator){
+ navigator.serial.addEventListener("disconnect",event=>{
+   if(port && (event.port===port || event.target===port))lostConnection("USB device physically disconnected.");
+ });
+}
