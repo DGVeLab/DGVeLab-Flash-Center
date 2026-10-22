@@ -119,7 +119,7 @@ $("flashBtn").addEventListener("click",()=>action(async()=>{
         throw Error("DGV file does not match the expected merged ESP32 layout (bootloader at 0x1000, app at 0x10000).");
       }
       if(item.address!==0) throw Error("This DGVeLab merged firmware must be written at offset 0x0.");
-      if(!loader.chip?.CHIP_NAME?.includes("ESP32") && !String($("detectedChip").textContent).includes("ESP32")){
+      if(!/^ESP32(?:-|\\b)(?!S[23]|C[2356]|H[24]|P4)/.test(String($("detectedChip").textContent))){
         throw Error("DGV firmware requires an ESP32-family chip. Verify compatibility before flashing.");
       }
       log("Merged DGVeLab firmware detected: bootloader 0x1000; partitions 0x8000; application 0x10000.");
