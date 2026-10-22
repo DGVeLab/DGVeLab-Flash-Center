@@ -9,3 +9,17 @@
 .officialdetails p{color:#aebdd4;line-height:1.6}
 .officialdetails select{max-width:500px}
 .officialprogress{margin-top:20px}
+
+/* Beta 0.4 — operation result and USB troubleshooting */
+.flash-result{border-radius:12px;border:1px solid #43617c;padding:17px 18px;margin-top:18px;background:#14243b;color:#d5e6fa;line-height:1.5}
+.flash-result[hidden]{display:none}
+.flash-result strong{display:block;font-size:16px;margin-bottom:5px}
+.flash-result p{margin:0;font-size:13px;line-height:1.7}
+.flash-result.success{background:#122b2a;border-color:#347b67;color:#c7f1df}
+.flash-result.warning{background:#342916;border-color:#806233;color:#f0dca8}
+.flash-result.error{background:#381d29;border-color:#9c445a;color:#ffd3d9}
+.driver-help{margin:30px 0 4px;border:1px solid #2c3c5c;border-radius:13px;background:#111b30;color:#c2d4ee}
+.driver-help summary{padding:17px 20px;font-weight:700;cursor:pointer}
+.driver-body{border-top:1px solid #2c3c5c;padding:12px 22px 20px;font-size:13px;line-height:1.8}
+.driver-body p{color:#adbbd2}
+.driver-body a{color:#97baff;text-underline-offset:3px}
