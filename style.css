@@ -23,3 +23,84 @@
 .driver-body{border-top:1px solid #2c3c5c;padding:12px 22px 20px;font-size:13px;line-height:1.8}
 .driver-body p{color:#adbbd2}
 .driver-body a{color:#97baff;text-underline-offset:3px}
+
+/* Variant B · DGVeLab brand / compact projects interface */
+:root{font-family:Inter,"Segoe UI",Arial,sans-serif;color:#eaf1ff;background:#070d1c}
+body{background:radial-gradient(ellipse 75% 35% at 78% 0%,#1a2c65 0%,transparent 85%),#080e1d}
+.shell{max-width:1210px;padding:30px 32px}
+.brand-banner{position:relative;isolation:isolate;display:flex;align-items:center;gap:34px;min-height:212px;padding:30px 48px;overflow:hidden;border:1px solid #2859a3;border-radius:16px;background:radial-gradient(ellipse at 55% 7%,#134e98 0%,#082960 36%,#061630 77%),#0a1d3c;box-shadow:0 15px 40px #03071166}
+.brand-banner:before{content:"";position:absolute;inset:0;z-index:-1;background-image:radial-gradient(#75aaff3b .8px,transparent .8px);background-size:18px 18px;mask-image:linear-gradient(90deg,#000,transparent 75%)}
+.brand-banner:after{content:"";position:absolute;width:480px;height:480px;border:2px solid #3989f143;border-radius:50%;right:-110px;top:0;z-index:-1;box-shadow:0 0 60px #2585ff45}
+.banner-logo{width:128px;height:128px;object-fit:contain;flex:0 0 auto;filter:drop-shadow(0 7px 22px #0006)}
+.banner-copy{border-left:1px solid #5980b35c;padding-left:32px;position:relative;z-index:1}
+.banner-copy h1{margin:0;font-size:clamp(25px,3.3vw,38px);line-height:1.16;letter-spacing:-.04em;white-space:nowrap}
+.banner-copy h1 span{color:#95baff}
+.banner-copy p{margin:12px 0 0;font-size:15px;color:#b7c9e7}
+.banner-art{pointer-events:none;position:absolute;right:35px;bottom:-14px;font-weight:900;font-size:clamp(100px,13vw,175px);line-height:1;color:#215baf50;letter-spacing:-.055em;z-index:0}
+.brand-banner .release{position:absolute;right:22px;top:20px;z-index:2;background:#0a2453dd}
+.tabs{margin:26px 0 16px;padding-bottom:16px;border-bottom:1px solid #253554;gap:10px}
+.tab{border-radius:10px;padding:13px 19px;min-height:50px}
+.tab.active{background:linear-gradient(160deg,#314f9b,#223970);border-color:#7496ff}
+.panel{border-radius:16px;border-color:#2b3b5b;background:#101a2c;padding:28px}
+.official-panel{min-height:0;padding:28px 32px 23px}
+.official-fields{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.official-field label{margin:0 0 10px;color:#ecf2ff;font-size:14px}
+.official-field select{width:100%;max-width:none;height:54px;border-radius:10px;border:1px solid #46628d;background:#1a2945;color:#f5f8ff;padding:0 16px;font-size:15px;font-weight:600;cursor:pointer}
+select:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid #81a7ff;outline-offset:3px}
+select:disabled{opacity:.55;cursor:not-allowed}
+.project-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.meta-chip{display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;min-height:32px;border:1px solid #34496c;border-radius:9px;background:#17253e;color:#b6cbea;font-size:12px}
+.meta-chip[hidden]{display:none}
+.meta-link{color:#a2c1ff;text-decoration:none}
+.meta-link:hover{background:#213962}
+.official-divider{height:1px;background:#2b3b5c;margin:20px 0 22px}
+.install-actions{display:flex;gap:20px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.install-actions .actions{gap:12px}
+.install-actions .primary,.install-actions .secondary{min-height:52px;min-width:190px;border-radius:10px;padding:13px 20px;font-size:15px}
+.install-actions .primary{background:linear-gradient(180deg,#4a80f7,#3566dc);min-width:225px}
+.install-actions .secondary{border-color:#4b71ad;background:#172b4c}
+button:not(:disabled){cursor:pointer}
+.install-actions button:disabled{opacity:.45}
+.connection-info{display:flex;gap:10px;align-items:center;font-size:13px;color:#b8c9e3;max-width:360px}
+.connection-led{display:inline-block;width:10px;height:10px;border-radius:50%;background:#748298;flex:0 0 auto}
+.connection-led.connected{background:#3ce4a0;box-shadow:0 0 12px #3ce4a066}
+.officialprogress{margin-top:19px}
+.progressrow progress{height:19px;border-radius:20px;overflow:hidden}
+.progressrow progress::-webkit-progress-bar{background:#24344c;border-radius:20px}
+.progressrow progress::-webkit-progress-value{background:linear-gradient(90deg,#2886ed,#548bff);border-radius:20px}
+.progressrow progress::-moz-progress-bar{background:#428bfa;border-radius:20px}
+.progressrow span{font-size:15px;color:#e0eaff;font-variant-numeric:tabular-nums}
+.official-panel .flash-result{margin-top:19px}
+.official-panel .flash-result strong{font-size:15px}
+.official-panel .flash-result p{font-size:12px}
+.official-notice{margin:20px 0 0;padding:10px 14px;font-size:12px;line-height:1.5;border-radius:9px}
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+[hidden]{display:none!important}
+@media(max-width:800px){
+ .shell{padding:18px 16px}
+ .brand-banner{min-height:155px;padding:24px;gap:20px}
+ .banner-logo{width:84px;height:84px}
+ .banner-copy{padding-left:18px}
+ .banner-copy h1{font-size:26px;white-space:normal}
+ .banner-copy p{font-size:12px}
+ .banner-art{opacity:.35}
+ .official-fields{gap:14px}
+ .install-actions .actions{width:100%}
+ .connection-info{max-width:100%}
+}
+@media(max-width:600px){
+ .brand-banner{min-height:175px;padding:22px 16px;gap:12px}
+ .banner-logo{width:62px;height:62px}
+ .banner-copy{padding-left:12px}
+ .banner-copy h1{font-size:21px}
+ .banner-copy p{font-size:11px;line-height:1.4}
+ .brand-banner .release{right:9px;top:9px;font-size:9px;padding:5px 7px}
+ .brand-banner .banner-art{font-size:110px;right:-15px;opacity:.16}
+ .tabs{flex-direction:row}
+ .tab{font-size:12px;min-height:44px;padding:11px 12px;flex:1}
+ .official-panel{padding:20px 16px}
+ .official-fields{grid-template-columns:1fr;gap:18px}
+ .install-actions .actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+ .install-actions .primary,.install-actions .secondary{min-width:0;padding:10px;font-size:12px;min-height:49px}
+ .connection-info{font-size:12px}
+}
