@@ -18,9 +18,32 @@ function showResult(id, state, heading, message) {
 }
 function clearResult(id){$(id).hidden=true;$(id).replaceChildren();}
 async function autoReset(){
- if(!loader||unplugged)return "USB disconnected; reconnect and reset manually.";
- try{await loader.after("hard_reset");log("Automatic reset signal sent (RTS).");return "Automatic reset requested. Check normal device startup.";}
- catch(e){log("Automatic reset failed: "+(e.message||e));return "Press EN/RST to restart the board.";}
+  // After a successful write, return the serial port to Windows so JoyDeck Hub
+  // or another desktop application can open it without unplugging the USB cable.
+  if(!loader||unplugged)return "USB was disconnected; reconnect the device if needed.";
+  let resetMessage;
+  try{
+    await loader.after("hard_reset");
+    log("Hardware reset signal sent (RTS).");
+    resetMessage="Reset signal sent.";
+  }catch(e){
+    log("Automatic reset unavailable: "+(e.message||e));
+    resetMessage="Automatic reset unavailable; press EN/RST if needed.";
+  }
+  // Release the serial port even if the reset failed.
+  try{
+    await transport.disconnect();
+    log("Serial port closed and released to other applications.");
+    resetMessage+=" USB serial port released; you can now start JoyDeck Hub.";
+  }catch(e){
+    log("WARNING: Could not release serial port: "+(e.message||e));
+    resetMessage+=" Could not confirm USB port release. Close this browser tab before opening JoyDeck Hub.";
+  }finally{
+    transport=null;loader=null;port=null;
+    unplugged=false;
+    $("detectedChip").textContent="Disconnected after flash — ready for JoyDeck Hub.";
+  }
+  return resetMessage;
 }
 function lostConnection(message){
  if(unplugged)return;
