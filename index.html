@@ -11,7 +11,7 @@
   <main class="shell">
     <header class="topbar">
       <a class="brand" href="./"><span class="brandmark">D<span>G</span></span><span>DGVeLab <strong>Flash Center</strong></span></a>
-      <span class="release">BETA · v0.2</span>
+      <span class="release">BETA · v0.3</span>
     </header>
     <section class="hero">
       <div class="eyebrow">ESP32 / ESP8266 · WEB FIRMWARE TOOL</div>
@@ -24,13 +24,18 @@
     </nav>
     <section class="panel" id="officialPanel">
       <div class="sectionheading"><div><h2>Choose your project</h2><p>Select an official DGVeLab device.</p></div><span class="tag">CATALOG PREVIEW</span></div>
-      <div class="devices">
-        <button class="device chosen" data-name="JoyDeck 2" data-chip="ESP32"><span class="deviceicon">JD</span><span><strong>JoyDeck 2</strong><small>ESP32 · USB</small></span><span class="tick">✓</span></button>
-        <button class="device" data-name="SENTRA Home" data-chip="ESP32"><span class="deviceicon">SH</span><span><strong>SENTRA Home</strong><small>ESP32 · USB</small></span><span class="tick">✓</span></button>
-        <button class="device" data-name="Wireless Taxi Controller" data-chip="ESP8266"><span class="deviceicon">WT</span><span><strong>Wireless Taxi</strong><small>ESP8266 · TX/RX</small></span><span class="tick">✓</span></button>
+      <div id="officialDevices" class="devices" aria-label="Official devices"><span class="fileinfo">Loading official catalog…</span></div>
+      <div class="officialdetails" id="officialDetails">
+        <div class="detailtitle"><strong id="officialProjectName">Select a device</strong><span id="officialState" class="tag">COMING SOON</span></div>
+        <p id="officialDescription">Official firmware is published only after validation.</p>
+        <label for="officialRelease">Firmware version</label>
+        <select id="officialRelease" disabled><option>No published firmware yet</option></select>
+        <div class="fileinfo" id="officialCompatibility">Device compatibility will be checked before installation.</div>
       </div>
-      <div class="notice">The official firmware catalog is being prepared. Installation is unavailable until verified firmware images and manifests are published.</div>
-      <button class="primary" disabled>Install Official Firmware <span>↗</span></button>
+      <div class="notice" id="officialNotice">No verified official firmware has been published yet. The advanced flasher remains available for local BIN/DGV files.</div>
+      <div class="actions"><button id="officialConnectBtn" class="secondary" type="button" disabled>Connect USB</button><button id="officialInstallBtn" class="primary" type="button" disabled>Install Official Firmware →</button></div>
+      <div class="progressrow officialprogress"><progress id="officialProgress" max="100" value="0"></progress><span id="officialProgressLabel">0%</span></div>
+      <div class="fileinfo" id="officialDeviceStatus" role="status">No device connected.</div>
     </section>
     <section class="panel hidden" id="advancedPanel">
       <div class="sectionheading"><div><h2>Advanced flasher</h2><p>Prepare local firmware images for custom ESP projects.</p></div><span class="tag">BETA · HARDWARE TEST REQUIRED</span></div>
