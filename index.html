@@ -11,7 +11,7 @@
   <main class="shell">
     <header class="topbar">
       <a class="brand" href="./"><span class="brandmark">D<span>G</span></span><span>DGVeLab <strong>Flash Center</strong></span></a>
-      <span class="release">PREVIEW · v0.1</span>
+      <span class="release">BETA · v0.2</span>
     </header>
     <section class="hero">
       <div class="eyebrow">ESP32 / ESP8266 · WEB FIRMWARE TOOL</div>
@@ -33,19 +33,23 @@
       <button class="primary" disabled>Install Official Firmware <span>↗</span></button>
     </section>
     <section class="panel hidden" id="advancedPanel">
-      <div class="sectionheading"><div><h2>Advanced flasher</h2><p>Prepare local firmware images for custom ESP projects.</p></div><span class="tag">PREVIEW</span></div>
-      <label for="chip">Chip family</label>
-      <select id="chip"><option>ESP32</option><option>ESP8266</option><option>ESP32-S2</option><option>ESP32-S3</option><option>ESP32-C3</option></select>
-      <label for="firmware">Local firmware (.bin)</label>
-      <input type="file" id="firmware" accept=".bin,application/octet-stream">
-      <label for="offset">Flash offset (hex)</label>
-      <input id="offset" type="text" value="0x0" spellcheck="false" autocomplete="off">
-      <div id="fileInfo" class="fileinfo" aria-live="polite">No firmware selected.</div>
-      <div class="notice">Preview only: selecting a file does not write to any device. Flash operations will be enabled after integration and hardware testing.</div>
-      <button class="primary" disabled>Flash Local Firmware <span>↗</span></button>
+      <div class="sectionheading"><div><h2>Advanced flasher</h2><p>Prepare local firmware images for custom ESP projects.</p></div><span class="tag">BETA · HARDWARE TEST REQUIRED</span></div>
+      <div class="connectbar"><div><strong id="deviceStatus">Disconnected</strong><p id="detectedChip">Connect an ESP device via USB.</p></div><div class="actions"><button id="connectBtn" class="primary" type="button">Connect USB</button><button id="disconnectBtn" class="secondary" type="button" disabled>Disconnect</button></div></div>
+      <label for="baud">Flash baud rate</label>
+      <select id="baud"><option value="115200">115200 (safe default)</option><option value="230400">230400</option><option value="460800">460800</option><option value="921600">921600</option></select>
+      <div class="sectionheading filesheading"><div><h2>Firmware images</h2><p>One merged BIN at the correct offset, or multiple partition images.</p></div><button id="addFileBtn" class="secondary" type="button">+ Add BIN</button></div>
+      <div id="fileRows" class="filerows"></div>
+      <div class="hint">Enter the offset from your firmware build. For example, many full ESP32 merged images use 0x0; individual images require their own offsets. Never guess.</div>
+      <div class="settingsgrid"><div><label for="flashMode">Flash mode</label><select id="flashMode"><option value="dio">DIO</option><option value="qio">QIO</option><option value="dout">DOUT</option><option value="qout">QOUT</option></select></div><div><label for="flashFreq">Flash frequency</label><select id="flashFreq"><option value="40m">40 MHz</option><option value="80m">80 MHz</option><option value="26m">26 MHz</option><option value="20m">20 MHz</option></select></div><div><label for="flashSize">Flash size</label><select id="flashSize"><option value="4MB">4MB</option><option value="2MB">2MB</option><option value="8MB">8MB</option><option value="16MB">16MB</option><option value="1MB">1MB</option><option value="512KB">512KB</option></select></div></div>
+      <div class="actions commands"><button id="flashBtn" class="primary" type="button" disabled>Flash Firmware →</button><button id="eraseBtn" class="danger" type="button" disabled>Erase Entire Flash</button><button id="resetBtn" class="secondary" type="button" disabled>Reset Device</button></div>
+      <div class="progressrow"><progress id="flashProgress" max="100" value="0"></progress><span id="progressLabel">0%</span></div>
+      <div class="sectionheading logheading"><div><h2>Activity log</h2><p>Connection and flashing messages.</p></div><button id="clearLogBtn" class="secondary" type="button">Clear log</button></div>
+      <pre id="activityLog" role="log" aria-live="polite">Ready. Connect a device to begin.</pre>
+      <div class="notice">Advanced operations can permanently erase device settings or install incompatible firmware. Test on a spare ESP board first. Close Arduino Serial Monitor, PlatformIO or other apps using the COM port.</div>
     </section>
     <footer><span>© DGVeLab · Made for makers</span><span id="support">Use Chrome or Edge desktop with Web Serial support.</span></footer>
   </main>
   <script src="app.js"></script>
+  <script type="module" src="flasher.js"></script>
 </body>
 </html>
