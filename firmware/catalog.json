@@ -23,6 +23,14 @@
       ]
     },
     {
+      "id": "joydeck1",
+      "name": "JoyDeck 1",
+      "chipFamily": "ESP32",
+      "description": "Legacy JoyDeck firmware, distributed together with JoyDeck Hub.",
+      "status": "coming_soon",
+      "releases": []
+    },
+    {
       "id": "sentra-home",
       "name": "SENTRA Home",
       "chipFamily": "ESP32",
