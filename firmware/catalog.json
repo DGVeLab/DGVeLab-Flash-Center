@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "projects": [
+    {
+      "id": "joydeck2",
+      "name": "JoyDeck 2",
+      "chipFamily": "ESP32",
+      "description": "JoyDeck 2 controller firmware",
+      "status": "coming_soon",
+      "releases": []
+    },
+    {
+      "id": "sentra-home",
+      "name": "SENTRA Home",
+      "chipFamily": "ESP32",
+      "description": "SENTRA Home smart lamp firmware",
+      "status": "coming_soon",
+      "releases": []
+    },
+    {
+      "id": "taxi-tx",
+      "name": "Wireless Taxi — TX",
+      "chipFamily": "ESP8266",
+      "description": "Wireless taxi transmitter",
+      "status": "coming_soon",
+      "releases": []
+    },
+    {
+      "id": "taxi-rx",
+      "name": "Wireless Taxi — RX",
+      "chipFamily": "ESP8266",
+      "description": "Wireless taxi receiver",
+      "status": "coming_soon",
+      "releases": []
+    }
+  ]
+}
