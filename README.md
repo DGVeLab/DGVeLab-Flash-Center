@@ -43,3 +43,7 @@ Use `offset` as a decimal number; the example uses decimal zero. For separate im
 - A successful write does not prove normal application boot; test reboot on hardware.
 - Firmware integrity is checked against the GitHub-hosted catalog; it is not a cryptographic publisher signature.
 - This is a beta tool. Use a spare board first.
+
+## Beta v0.4 — post-flash behavior
+
+After a successful write, the browser requests an RTS-based hardware reset. Some boards may require EN/RST manually. The completion panel reports bytes and elapsed time, but does **not** claim that the application booted or independently verified flash readback. USB disconnection events are reported and require reconnection before programming again. A collapsible USB driver guide links to the Silicon Labs CP210x and WCH CH340/CH9102 manufacturer pages.
