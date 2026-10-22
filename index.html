@@ -5,40 +5,49 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0b1020">
   <title>DGVeLab Flash Center</title>
+  <link rel="icon" type="image/png" href="./assets/dgvelab-logo.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main class="shell">
-    <header class="topbar">
-      <a class="brand" href="./"><span class="brandmark">D<span>G</span></span><span>DGVeLab <strong>Flash Center</strong></span></a>
-      <span class="release">BETA · v0.4</span>
+    <header class="brand-banner">
+      <img class="banner-logo" src="./assets/dgvelab-logo.png" alt="DGVeLab DGV logo" width="124" height="124">
+      <div class="banner-copy"><h1>DGVeLab <span>Flash Center</span></h1><p>USB firmware installer for ESP devices</p></div>
+      <div class="banner-art" aria-hidden="true">DGV</div>
+      <span class="release">BETA · v0.5</span>
     </header>
-    <section class="hero">
-      <div class="eyebrow">ESP32 / ESP8266 · WEB FIRMWARE TOOL</div>
-      <h1>Flash your device.<br><em>Right from your browser.</em></h1>
-      <p>Official DGVeLab firmware installation and advanced developer tools. No desktop software required on supported browsers.</p>
-    </section>
     <nav class="tabs" aria-label="Flashing mode">
-      <button id="officialTab" class="tab active" aria-selected="true" aria-controls="officialPanel">◈ &nbsp; Official Firmware</button>
-      <button id="advancedTab" class="tab" aria-selected="false" aria-controls="advancedPanel">⌘ &nbsp; Advanced Flasher</button>
+      <button id="officialTab" class="tab active" aria-selected="true" aria-controls="officialPanel" type="button">◇ &nbsp; DGVeLab Projects</button>
+      <button id="advancedTab" class="tab" aria-selected="false" aria-controls="advancedPanel" type="button">⌘ &nbsp; Advanced Flasher</button>
     </nav>
-    <section class="panel" id="officialPanel">
-      <div class="sectionheading"><div><h2>Choose your project</h2><p>Select an official DGVeLab device.</p></div><span class="tag">OFFICIAL RELEASES</span></div>
-      <div id="officialDevices" class="devices" aria-label="Official devices"><span class="fileinfo">Loading official catalog…</span></div>
-      <div class="officialdetails" id="officialDetails">
-        <div class="detailtitle"><strong id="officialProjectName">Select a device</strong><span id="officialState" class="tag">COMING SOON</span></div>
-        <p id="officialDescription">Official firmware is published only after validation.</p>
-        <label for="officialRelease">Firmware version</label>
-        <select id="officialRelease" disabled><option>No published firmware yet</option></select>
-        <div class="fileinfo" id="officialCompatibility">Device compatibility will be checked before installation.</div>
-        <div id="officialReleaseInfo" class="fileinfo"></div>
-        <a id="officialSourceLink" href="https://github.com/DGVeLab/JoyDeck/releases" target="_blank" rel="noopener noreferrer" hidden>View complete release (Hub + firmware) ↗</a>
+    <section class="panel official-panel" id="officialPanel" aria-label="DGVeLab Projects">
+      <div class="official-fields">
+        <div class="official-field"><label for="officialProjectSelect">Project</label>
+          <select id="officialProjectSelect" aria-label="Select project" disabled><option>Loading projects…</option></select>
+        </div>
+        <div class="official-field"><label for="officialRelease">Firmware version</label>
+          <select id="officialRelease" disabled><option>Loading firmware…</option></select>
+        </div>
       </div>
-      <div class="notice" id="officialNotice">No verified official firmware has been published yet. The advanced flasher remains available for local BIN/DGV files.</div>
-      <div class="actions"><button id="officialConnectBtn" class="secondary" type="button" disabled>Connect USB</button><button id="officialInstallBtn" class="primary" type="button" disabled>Install Official Firmware →</button></div>
+      <div class="project-meta" aria-live="polite">
+        <span id="officialChip" class="meta-chip">ESP</span>
+        <span id="officialHub" class="meta-chip" hidden></span>
+        <a id="officialSourceLink" class="meta-chip meta-link" href="https://github.com/DGVeLab/JoyDeck/releases" target="_blank" rel="noopener noreferrer" hidden>Release ↗</a>
+        <span id="officialState" class="sr-only"></span>
+        <span id="officialProjectName" class="sr-only"></span>
+        <span id="officialDescription" class="sr-only"></span>
+        <span id="officialCompatibility" class="sr-only"></span>
+        <span id="officialReleaseInfo" class="sr-only"></span>
+      </div>
+      <div class="official-divider"></div>
+      <div class="install-actions">
+        <div class="actions"><button id="officialConnectBtn" class="secondary" type="button" disabled>♧ &nbsp; Connect USB</button>
+          <button id="officialInstallBtn" class="primary" type="button" disabled>⇩ &nbsp; Install Firmware</button></div>
+        <div class="connection-info"><span class="connection-led" id="officialLed" aria-hidden="true"></span><span id="officialDeviceStatus" role="status">Not connected</span></div>
+      </div>
       <div class="progressrow officialprogress"><progress id="officialProgress" max="100" value="0"></progress><span id="officialProgressLabel">0%</span></div>
-      <div class="fileinfo" id="officialDeviceStatus" role="status">No device connected.</div>
       <section id="officialResult" class="flash-result" hidden role="status" aria-live="polite"></section>
+      <div class="notice official-notice" id="officialNotice">Flashing may overwrite saved settings. Verify your device.</div>
     </section>
     <section class="panel hidden" id="advancedPanel">
       <div class="sectionheading"><div><h2>Advanced flasher</h2><p>Prepare local firmware images for custom ESP projects.</p></div><span class="tag">BETA · HARDWARE TEST REQUIRED</span></div>
