@@ -7,7 +7,20 @@
       "chipFamily": "ESP32",
       "description": "JoyDeck 2 controller firmware",
       "status": "coming_soon",
-      "releases": []
+      "releases": [
+        {
+          "version": "pending-validation",
+          "channel": "stable",
+          "published": false,
+          "parts": [
+            {
+              "path": "./firmware/joydeck2/firmware-merged.bin",
+              "offset": 0,
+              "sha256": "474ce3f1a0a2e66fe84e78463b4f7063876990f10bd47dfd432511783dcdd1ff"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "sentra-home",
