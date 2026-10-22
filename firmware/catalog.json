@@ -6,12 +6,12 @@
       "name": "JoyDeck 2",
       "chipFamily": "ESP32",
       "description": "JoyDeck 2 controller firmware",
-      "status": "coming_soon",
+      "status": "available",
       "releases": [
         {
-          "version": "pending-validation",
+          "version": "1.3.0",
           "channel": "stable",
-          "published": false,
+          "published": true,
           "parts": [
             {
               "path": "./firmware/joydeck2/firmware-merged.bin",
