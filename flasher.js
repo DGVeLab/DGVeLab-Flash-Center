@@ -234,35 +234,47 @@ function hex(b){return Array.from(b).map(x=>x.toString(16).padStart(2,"0")).join
 function catalogUpdate(){
   projectsEl.replaceChildren();
   const projects=officialCatalog?.projects ?? [];
+  if(!selectedProject && projects.length)selectedProject=projects[0];
   for(const project of projects){
+    const published=(project.releases||[]).some(r=>r.published===true);
     const btn=document.createElement("button");
     btn.type="button";btn.className="device"+(project.id===selectedProject?.id?" chosen":"");
     btn.innerHTML='<span class="deviceicon">ESP</span><span><strong></strong><small></small></span><span class="tick">✓</span>';
     btn.querySelector("strong").textContent=project.name;
-    btn.querySelector("small").textContent=project.chipFamily+" · "+(project.releases?.length ? "Firmware available" : "Coming soon");
-    btn.addEventListener("click",()=>{selectedProject=project;selectedRelease=null;catalogUpdate();});
+    btn.querySelector("small").textContent=project.chipFamily+" · "+(published?"Firmware available":"Coming soon");
+    btn.addEventListener("click",()=>{if(busy)return;selectedProject=project;selectedRelease=null;catalogUpdate();});
+    btn.disabled=busy;
     projectsEl.append(btn);
   }
-  if(!selectedProject && projects.length) selectedProject=projects[0];
-  // Rebuild one time to ensure the default selection is marked.
-  if(!projectsEl.querySelector(".chosen") && selectedProject)projectsEl.querySelector(".device")?.classList.add("chosen");
-  $("officialProjectName").textContent=selectedProject?.name ?? "No official projects";
-  $("officialDescription").textContent=selectedProject?.description ?? "Catalog not available.";
-  const releases=(selectedProject?.releases ?? []).filter(r=>r.published===true);
+  $("officialProjectName").textContent=selectedProject?.name??"No official projects";
+  $("officialDescription").textContent=selectedProject?.description??"Catalog not available.";
+  const releases=(selectedProject?.releases??[]).filter(r=>r.published===true);
+  // Preserve the explicit selection across UI updates.
+  const selectedVersion=selectedRelease?.version;
+  selectedRelease=releases.find(r=>r.version===selectedVersion)??releases[0]??null;
   releaseEl.replaceChildren();
   if(!releases.length){
     releaseEl.add(new Option("No published firmware yet",""));
     releaseEl.disabled=true;
     $("officialState").textContent="COMING SOON";
-    $("officialNotice").textContent="This project does not have a verified official firmware yet. Advanced Flasher can still install a local BIN/DGV file.";
+    $("officialNotice").textContent="This project is not yet imported. Run the JoyDeck 1 release sync workflow, or install a local BIN/DGV with Advanced Flasher.";
   }else{
-    releaseEl.disabled=false;
-    for(const release of releases)releaseEl.add(new Option(release.version+" · "+(release.channel||"stable"),release.version));
-    selectedRelease=releases.find(r=>r.version===releaseEl.value)??releases[0];
+    releaseEl.disabled=busy;
+    for(const release of releases)releaseEl.add(new Option(
+       release.version+" · "+(release.channel||"stable")+(release.hubVersion?" · Hub "+release.hubVersion:""),release.version));
+    releaseEl.value=selectedRelease.version;
     $("officialState").textContent="AVAILABLE";
     $("officialNotice").textContent="Installing a merged firmware may overwrite calibration, Wi-Fi credentials and saved settings. Verify the connected hardware before installing.";
   }
-  $("officialCompatibility").textContent=selectedProject?"Required chip: "+selectedProject.chipFamily+" · "+(selectedRelease?.parts?.length||0)+" firmware image(s)":"Select a project.";
+  $("officialCompatibility").textContent=selectedProject?
+    "Required chip: "+selectedProject.chipFamily+" · "+(selectedRelease?.parts?.length||0)+" firmware image(s)":"Select a project.";
+  $("officialReleaseInfo").textContent=selectedRelease?.hubVersion?
+    "Paired JoyDeck Hub: "+selectedRelease.hubVersion+" · Firmware: "+selectedRelease.version:"";
+  const link=$("officialSourceLink");
+  const url=selectedRelease?.sourceRelease;
+  if(typeof url==="string"&&/^https:\/\/github\.com\/DGVeLab\/JoyDeck\/releases\/tag\/[a-zA-Z0-9._-]+$/.test(url)){
+    link.href=url;link.hidden=false;
+  }else link.hidden=true;
   sync();
 }
 releaseEl.addEventListener("change",()=>{
