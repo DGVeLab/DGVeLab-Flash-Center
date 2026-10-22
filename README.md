@@ -1,47 +1,86 @@
 # DGVeLab Flash Center
 
-Browser-based ESP firmware installer: https://dgvelab.github.io/DGVeLab-Flash-Center/
+**Flash ESP firmware directly from your browser.**
 
-## Public official firmware
+DGVeLab Flash Center is a web-based tool for installing official DGVeLab firmware or flashing your own firmware files to compatible ESP devices. No dedicated desktop flashing application is required.
 
-**Only JoyDeck 1** is currently available in the Official Firmware catalog.
-JoyDeck 2 and SENTRA Home are not yet public and are not listed.
-Wireless Taxi is a work-related project and is deliberately excluded.
+**[Open DGVeLab Flash Center](https://dgvelab.github.io/DGVeLab-Flash-Center/)**
 
-**Advanced Flasher** remains available for users who provide their *own* local
-BIN/DGV files. It is not a distribution channel for DGVeLab's non-public firmware.
+## Features
 
-## JoyDeck 1 release synchronization
+- **Official Firmware** — Choose a project and firmware version from the available catalog, then install it through USB.
+- **Advanced Flasher** — Flash local `.bin` or `.dgv` files, with configurable memory offsets and flash settings.
+- **Device detection** — Identify the connected ESP chip before programming.
+- **Integrity checks** — Validate official firmware downloads against their published SHA-256 checksums.
+- **Progress and status** — Follow the flashing process and review the completion summary.
+- **USB port release** — After a successful flash, the tool attempts to reset the device and releases the serial port for other applications.
 
-The source of truth is [DGVeLab/JoyDeck releases](https://github.com/DGVeLab/JoyDeck/releases).
-Tags contain both Hub and firmware versions, e.g. `SW1.1.91-FW1.1.12`.
+## Requirements
 
-The action `Sync JoyDeck 1 releases` imports published firmware (BIN, DGV,
-or RAR containing one merged image), validates the classic ESP32 merged
-layout and SHA-256, and stores a versioned BIN under
-`firmware/joydeck1/<firmware-version>/firmware-merged.bin`.
+- A computer running **Google Chrome** or **Microsoft Edge** with Web Serial support.
+- A compatible **ESP32 or ESP8266** device.
+- A **USB data cable** (not a charging-only cable).
+- The appropriate USB-to-serial driver, if required by your board.
 
-To synchronize: **Actions → Sync JoyDeck 1 releases → Run workflow** on `main`.
-The workflow checks for new published JoyDeck 1 releases automatically every six hours\n(UTC schedule: `17 */6 * * *`) and can still be started manually.\nWhen nothing changes, no commit is generated; previously imported firmware images\nare reused instead of downloaded again. Historical versions remain in the catalog.\nIt updates `firmware/catalog.json`, preserving the paired JoyDeck Hub version
-and a link to the original release.
+> **Before connecting:** Close any serial monitor, IDE, or other application using the device's COM/serial port.
 
-## Requirements and safety
+## Install official firmware
 
-Use Chrome or Edge desktop with Web Serial and a USB data cable.
-Close applications using the COM port before flashing; after a successful
-write the browser requests a hardware reset and releases its serial port.
-A successful flash does **not** independently verify firmware startup.
-Flash operations can overwrite settings, calibration and other stored data.
-Test unverified hardware/firmware combinations on a spare board first.
-Firmware checksums establish file consistency with the published catalog,
-not a separate cryptographic publisher signature.
+1. Open the **[Flash Center](https://dgvelab.github.io/DGVeLab-Flash-Center/)**.
+2. Select **Official Firmware**.
+3. Choose your project and the firmware version you want to install.
+4. Connect the device to your computer with a USB data cable.
+5. Click **Connect USB**, then select the correct serial port in your browser.
+6. Check the detected device and firmware details.
+7. Click **Install Official Firmware** and confirm the operation.
+8. Keep the USB cable connected until the completion message appears.
 
-CP210x and CH340/CH9102 driver links are available on the site.
+The tool checks the firmware checksum and chip family before programming. After a successful write, it requests a device reset and releases the USB serial connection.
 
-The scheduled run is best-effort: GitHub Actions cron jobs can be delayed or
-occasionally skipped. The manual **Run workflow** button remains available.
-Only JoyDeck 1 releases are imported. A release that reuses an existing
-firmware version but pairs it with a newer Hub may update the displayed Hub
-version; the firmware binary is not duplicated. If the same firmware version
-is republished with different binary bytes, the job fails safely instead of
-silently overwriting an existing public firmware file.
+**Important:** A completed flash confirms that the write operation finished; it does not independently verify that the installed application starts correctly.
+
+## Advanced Flasher
+
+Use **Advanced Flasher** when you need to program a local firmware file.
+
+1. Select the **Advanced Flasher** tab.
+2. Connect the ESP device using **Connect USB**.
+3. Choose one or more `.bin` or `.dgv` firmware images.
+4. Set the **correct flash offset** for every image.
+5. Review the available flash parameters. Keep the original settings unless your firmware instructions specify otherwise.
+6. Click **Flash Firmware** and confirm the operation.
+7. Wait for the completion message before disconnecting the device.
+
+The advanced tools also provide **Reset Device**, **Erase Entire Flash**, and an **activity log**.
+
+> **Warning:** Flash offsets depend on the firmware's memory layout. An incorrect offset, incompatible image, or erase operation can prevent the device from booting or permanently remove saved settings. Do not guess the addresses.
+
+## Troubleshooting
+
+**No serial port appears**
+- Check that your USB cable supports data transfer.
+- Try a different USB port and close applications using the serial connection.
+- Install the appropriate CP210x, CH340, or CH9102 driver if needed. The Flash Center includes links to driver manufacturers.
+- Confirm that your browser supports Web Serial and that the page is opened over HTTPS.
+
+**The device does not connect**
+- Check that the selected port belongs to your ESP device.
+- Some boards require holding **BOOT** while entering flashing mode.
+- Disconnect and reconnect USB, then try again.
+
+**Firmware was written but the device does not start**
+- Confirm that you selected the correct firmware for the hardware.
+- If the automatic reset is not supported by your board, press **EN/RST**.
+- Check the activity log for errors and review the firmware's installation instructions.
+
+## Safety notes
+
+Flashing may overwrite calibration data, Wi-Fi credentials, preferences, and other information stored on the device. Back up important settings when possible, and test unfamiliar firmware on a spare board.
+
+Use only firmware from sources you trust. Official firmware checksum checks confirm that the downloaded file matches the published catalog; they are not a separate digital signature.
+
+## Project
+
+Developed by **DGVeLab**.
+
+[Flash Center](https://dgvelab.github.io/DGVeLab-Flash-Center/) · [GitHub repository](https://github.com/DGVeLab/DGVeLab-Flash-Center)
