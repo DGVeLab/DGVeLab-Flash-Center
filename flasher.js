@@ -64,7 +64,12 @@ function sync() {
   $("addFileBtn").disabled = busy;
   if ($("officialConnectBtn")) $("officialConnectBtn").disabled = busy || connected || !("serial" in navigator);
   if ($("officialInstallBtn")) $("officialInstallBtn").disabled = busy || !connected || !selectedRelease;
-  if ($("officialDeviceStatus")) $("officialDeviceStatus").textContent = connected ? $("detectedChip").textContent : busy ? "Connecting / programming…" : "No device connected.";
+  if ($("officialDeviceStatus")) $("officialDeviceStatus").textContent = connected ? $("detectedChip").textContent : busy ? "Connecting / programming…" : "Not connected";
+  if ($("officialLed")) $("officialLed").classList.toggle("connected",connected);
+  const projectSelect=$("officialProjectSelect");
+  if (projectSelect) projectSelect.disabled=busy || !officialCatalog?.projects?.length;
+  const versionSelect=$("officialRelease");
+  if (versionSelect) versionSelect.disabled=busy || !selectedRelease;
   $("deviceStatus").textContent = busy ? "Working…" : connected ? "Connected" : "Disconnected";
   document.querySelectorAll(".filerows input,.filerows button,.settingsgrid select,#baud").forEach(el => el.disabled = busy);
 }
@@ -221,7 +226,7 @@ sync();
 
 
 // Official firmware installer. Catalog entries remain unavailable until signed-off images are published.
-const projectsEl=$("officialDevices");
+const projectsEl=$("officialProjectSelect");
 const releaseEl=$("officialRelease");
 function getChipFamily(){
   const label=$("detectedChip").textContent;
@@ -232,53 +237,57 @@ function getChipFamily(){
 }
 function hex(b){return Array.from(b).map(x=>x.toString(16).padStart(2,"0")).join("");}
 function catalogUpdate(){
-  projectsEl.replaceChildren();
-  const projects=officialCatalog?.projects ?? [];
+  const projects=officialCatalog?.projects??[];
   if(!selectedProject && projects.length)selectedProject=projects[0];
+  projectsEl.replaceChildren();
   for(const project of projects){
-    const published=(project.releases||[]).some(r=>r.published===true);
-    const btn=document.createElement("button");
-    btn.type="button";btn.className="device"+(project.id===selectedProject?.id?" chosen":"");
-    btn.innerHTML='<span class="deviceicon">ESP</span><span><strong></strong><small></small></span><span class="tick">✓</span>';
-    btn.querySelector("strong").textContent=project.name;
-    btn.querySelector("small").textContent=project.chipFamily+" · "+(published?"Firmware available":"Coming soon");
-    btn.addEventListener("click",()=>{if(busy)return;selectedProject=project;selectedRelease=null;catalogUpdate();});
-    btn.disabled=busy;
-    projectsEl.append(btn);
+    const released=(project.releases||[]).some(r=>r.published===true);
+    projectsEl.add(new Option(project.name+(released?"":" · Coming soon"),project.id));
   }
-  $("officialProjectName").textContent=selectedProject?.name??"No official projects";
-  $("officialDescription").textContent=selectedProject?.description??"Catalog not available.";
+  projectsEl.disabled=busy||projects.length===0;
+  if(selectedProject)projectsEl.value=selectedProject.id;
   const releases=(selectedProject?.releases??[]).filter(r=>r.published===true);
-  // Preserve the explicit selection across UI updates.
-  const selectedVersion=selectedRelease?.version;
-  selectedRelease=releases.find(r=>r.version===selectedVersion)??releases[0]??null;
+  selectedRelease=releases.find(r=>r.version===selectedRelease?.version)??releases[0]??null;
   releaseEl.replaceChildren();
-  if(!releases.length){
-    releaseEl.add(new Option("No published firmware yet",""));
+  if(!selectedRelease){
+    releaseEl.add(new Option("Not available",""));
     releaseEl.disabled=true;
     $("officialState").textContent="COMING SOON";
-    $("officialNotice").textContent="This project is not yet imported. Run the JoyDeck 1 release sync workflow, or install a local BIN/DGV with Advanced Flasher.";
+    $("officialNotice").textContent="No firmware available for this project.";
   }else{
-    releaseEl.disabled=busy;
     for(const release of releases)releaseEl.add(new Option(
-       release.version+" · "+(release.channel||"stable")+(release.hubVersion?" · Hub "+release.hubVersion:""),release.version));
+      release.version+(release.hubVersion?" · Hub "+release.hubVersion:""),release.version));
     releaseEl.value=selectedRelease.version;
+    releaseEl.disabled=busy;
     $("officialState").textContent="AVAILABLE";
-    $("officialNotice").textContent="Installing a merged firmware may overwrite calibration, Wi-Fi credentials and saved settings. Verify the connected hardware before installing.";
+    $("officialNotice").textContent="Flashing may overwrite calibration and saved settings. Verify your device.";
   }
-  $("officialCompatibility").textContent=selectedProject?
-    "Required chip: "+selectedProject.chipFamily+" · "+(selectedRelease?.parts?.length||0)+" firmware image(s)":"Select a project.";
-  $("officialReleaseInfo").textContent=selectedRelease?.hubVersion?
-    "Paired JoyDeck Hub: "+selectedRelease.hubVersion+" · Firmware: "+selectedRelease.version:"";
+  $("officialProjectName").textContent=selectedProject?.name??"";
+  $("officialDescription").textContent=selectedProject?.description??"";
+  $("officialCompatibility").textContent=selectedProject?.chipFamily??"";
+  $("officialReleaseInfo").textContent=selectedRelease?.hubVersion??"";
+  $("officialChip").textContent=selectedProject?.chipFamily??"ESP";
+  const hubEl=$("officialHub");
+  hubEl.hidden=!selectedRelease?.hubVersion;
+  hubEl.textContent=selectedRelease?.hubVersion?"Hub "+selectedRelease.hubVersion:"";
   const link=$("officialSourceLink");
   const url=selectedRelease?.sourceRelease;
-  if(typeof url==="string"&&/^https:\/\/github\.com\/DGVeLab\/JoyDeck\/releases\/tag\/[a-zA-Z0-9._-]+$/.test(url)){
+  if(typeof url==="string"&&/^https:\/\/github\.com\/DGVeLab\/[A-Za-z0-9_.-]+\/releases\/tag\/[a-zA-Z0-9._-]+$/.test(url)){
     link.href=url;link.hidden=false;
   }else link.hidden=true;
   sync();
 }
+projectsEl.addEventListener("change",()=>{
+  selectedProject=(officialCatalog?.projects??[]).find(p=>p.id===projectsEl.value)??null;
+  selectedRelease=null;
+  clearResult("officialResult");
+  $("officialProgress").value=0;$("officialProgressLabel").textContent="0%";
+  catalogUpdate();
+});
 releaseEl.addEventListener("change",()=>{
-  selectedRelease=(selectedProject?.releases??[]).find(r=>r.version===releaseEl.value && r.published===true)??null;
+  selectedRelease=(selectedProject?.releases??[]).find(r=>r.version===releaseEl.value&&r.published===true)??null;
+  clearResult("officialResult");
+  $("officialProgress").value=0;$("officialProgressLabel").textContent="0%";
   catalogUpdate();
 });
 $("officialConnectBtn").addEventListener("click",()=> $("connectBtn").click());
@@ -335,6 +344,8 @@ async function loadCatalog(){
     selectedProject=data.projects[0]??null;
     catalogUpdate();
   }catch(e){
+    $("officialProjectSelect").replaceChildren(new Option("Catalog unavailable",""));
+    $("officialProjectSelect").disabled=true;
     $("officialProjectName").textContent="Catalog unavailable";
     $("officialNotice").textContent="Cannot load official catalog: "+e.message;
     log("Catalog error: "+e.message);
