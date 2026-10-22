@@ -47,6 +47,7 @@ def download(url, path):
 
 def extract_archive(archive, location):
     # bsdtar supports RAR unpacking on the Ubuntu runner (libarchive-tools).
+    location.mkdir(parents=True, exist_ok=True)
     subprocess.run(["bsdtar", "-xf", str(archive), "-C", str(location)], check=True)
     files = [p for p in location.rglob("*") if p.is_file() and FIRMWARE.search(p.name)]
     if len(files) != 1:
