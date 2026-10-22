@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <title>DGVeLab Flash Center</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="./"><span class="brandmark">D<span>G</span></span><span>DGVeLab <strong>Flash Center</strong></span></a>
+      <span class="release">PREVIEW · v0.1</span>
+    </header>
+    <section class="hero">
+      <div class="eyebrow">ESP32 / ESP8266 · WEB FIRMWARE TOOL</div>
+      <h1>Flash your device.<br><em>Right from your browser.</em></h1>
+      <p>Official DGVeLab firmware installation and advanced developer tools. No desktop software required on supported browsers.</p>
+    </section>
+    <nav class="tabs" aria-label="Flashing mode">
+      <button id="officialTab" class="tab active" aria-selected="true" aria-controls="officialPanel">◈ &nbsp; Official Firmware</button>
+      <button id="advancedTab" class="tab" aria-selected="false" aria-controls="advancedPanel">⌘ &nbsp; Advanced Flasher</button>
+    </nav>
+    <section class="panel" id="officialPanel">
+      <div class="sectionheading"><div><h2>Choose your project</h2><p>Select an official DGVeLab device.</p></div><span class="tag">CATALOG PREVIEW</span></div>
+      <div class="devices">
+        <button class="device chosen" data-name="JoyDeck 2" data-chip="ESP32"><span class="deviceicon">JD</span><span><strong>JoyDeck 2</strong><small>ESP32 · USB</small></span><span class="tick">✓</span></button>
+        <button class="device" data-name="SENTRA Home" data-chip="ESP32"><span class="deviceicon">SH</span><span><strong>SENTRA Home</strong><small>ESP32 · USB</small></span><span class="tick">✓</span></button>
+        <button class="device" data-name="Wireless Taxi Controller" data-chip="ESP8266"><span class="deviceicon">WT</span><span><strong>Wireless Taxi</strong><small>ESP8266 · TX/RX</small></span><span class="tick">✓</span></button>
+      </div>
+      <div class="notice">The official firmware catalog is being prepared. Installation is unavailable until verified firmware images and manifests are published.</div>
+      <button class="primary" disabled>Install Official Firmware <span>↗</span></button>
+    </section>
+    <section class="panel hidden" id="advancedPanel">
+      <div class="sectionheading"><div><h2>Advanced flasher</h2><p>Prepare local firmware images for custom ESP projects.</p></div><span class="tag">PREVIEW</span></div>
+      <label for="chip">Chip family</label>
+      <select id="chip"><option>ESP32</option><option>ESP8266</option><option>ESP32-S2</option><option>ESP32-S3</option><option>ESP32-C3</option></select>
+      <label for="firmware">Local firmware (.bin)</label>
+      <input type="file" id="firmware" accept=".bin,application/octet-stream">
+      <label for="offset">Flash offset (hex)</label>
+      <input id="offset" type="text" value="0x0" spellcheck="false" autocomplete="off">
+      <div id="fileInfo" class="fileinfo" aria-live="polite">No firmware selected.</div>
+      <div class="notice">Preview only: selecting a file does not write to any device. Flash operations will be enabled after integration and hardware testing.</div>
+      <button class="primary" disabled>Flash Local Firmware <span>↗</span></button>
+    </section>
+    <footer><span>© DGVeLab · Made for makers</span><span id="support">Use Chrome or Edge desktop with Web Serial support.</span></footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
