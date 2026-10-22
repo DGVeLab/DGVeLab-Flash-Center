@@ -71,7 +71,7 @@ function addRow(offset = "0x0") {
   const address = document.createElement("input");
   address.className = "fileoffset"; address.value=offset; address.setAttribute("aria-label","Flash offset (hex)");
   const file = document.createElement("input");
-  file.className = "binfile"; file.type="file"; file.accept=".bin,application/octet-stream"; file.setAttribute("aria-label","Firmware BIN file");
+  file.className = "binfile"; file.type="file"; file.accept=".bin,.dgv,application/octet-stream"; file.setAttribute("aria-label","Firmware BIN file");
   const remove=document.createElement("button");
   remove.type="button";remove.className="secondary";remove.textContent="Remove";
   remove.addEventListener("click",()=>{if(!busy){row.remove();if(!$("fileRows").children.length)addRow();}});
@@ -88,7 +88,7 @@ function collectMetadata(){
     if(!/^0x[0-9a-f]+$/i.test(raw)) throw Error("Flash offsets must be hexadecimal, for example 0x0 or 0x10000.");
     const address=Number.parseInt(raw,16), file=input.files[0];
     if(!Number.isSafeInteger(address) || address<0 || address>0xFFFFFFFF) throw Error("Offset is outside the supported address range.");
-    if(!file.name.toLowerCase().endsWith(".bin") || file.size===0) throw Error("Choose a non-empty .bin file.");
+    if(!/\.(bin|dgv)$/i.test(file.name) || file.size===0) throw Error("Choose a non-empty .bin or .dgv firmware file.");
     if(file.size > 32*1024*1024) throw Error("File exceeds the 32 MiB safety limit.");
     if(address % 4096 !== 0) throw Error("Flash offset must be 4 KiB-aligned: "+raw);
     files.push({address,file});
@@ -112,7 +112,20 @@ $("flashBtn").addEventListener("click",()=>action(async()=>{
   const approved=confirm("WARNING: Flashing may overwrite firmware and settings. Verify chip family and offsets.\n\n"+summary+"\n\nContinue with flashing?");
   if(!approved){log("Flash canceled.");return;}
   const fileArray=[];
-  for(const item of metadata)fileArray.push({address:item.address,data:new Uint8Array(await item.file.arrayBuffer())});
+  for(const item of metadata){
+    const data=new Uint8Array(await item.file.arrayBuffer());
+    if(item.file.name.toLowerCase().endsWith(".dgv")){
+      if(data.length<0x10018 || data[0x1000]!==0xe9 || data[0x10000]!==0xe9){
+        throw Error("DGV file does not match the expected merged ESP32 layout (bootloader at 0x1000, app at 0x10000).");
+      }
+      if(item.address!==0) throw Error("This DGVeLab merged firmware must be written at offset 0x0.");
+      if(!loader.chip?.CHIP_NAME?.includes("ESP32") && !String($("detectedChip").textContent).includes("ESP32")){
+        throw Error("DGV firmware requires an ESP32-family chip. Verify compatibility before flashing.");
+      }
+      log("Merged DGVeLab firmware detected: bootloader 0x1000; partitions 0x8000; application 0x10000.");
+    }
+    fileArray.push({address:item.address,data});
+  }
   $("flashProgress").value=0;$("progressLabel").textContent="0%";
   log("Writing "+fileArray.length+" firmware image(s)...");
   const totals=fileArray.map(x=>x.data.length);
