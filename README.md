@@ -38,7 +38,7 @@ Use `offset` as a decimal number; the example uses decimal zero. For separate im
 
 ## Safety and limitations
 
-- The currently published catalog has no installable releases.
+- JoyDeck 2 firmware 1.3.0 is published for ESP32-classic boards. The official installer has not yet been hardware-tested end-to-end; validate on a spare board before distributing broadly.
 - Flashing may overwrite NVS, Wi-Fi credentials, calibration and other user settings.
 - A successful write does not prove normal application boot; test reboot on hardware.
 - Firmware integrity is checked against the GitHub-hosted catalog; it is not a cryptographic publisher signature.
