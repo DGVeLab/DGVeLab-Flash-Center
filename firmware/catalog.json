@@ -27,8 +27,54 @@
       "name": "JoyDeck 1",
       "chipFamily": "ESP32",
       "description": "Legacy JoyDeck firmware, distributed together with JoyDeck Hub.",
-      "status": "coming_soon",
-      "releases": []
+      "status": "available",
+      "releases": [
+        {
+          "version": "1.1.12",
+          "hubVersion": "1.1.91",
+          "channel": "stable",
+          "published": true,
+          "sourceRelease": "https://github.com/DGVeLab/JoyDeck/releases/tag/SW1.1.91-FW1.1.12",
+          "sourceTag": "SW1.1.91-FW1.1.12",
+          "parts": [
+            {
+              "path": "./firmware/joydeck1/1.1.12/firmware-merged.bin",
+              "offset": 0,
+              "sha256": "597eeb5f4975e4e675a637c601c386e4c8ee14f24eb27a274a103c6103aa19e7"
+            }
+          ]
+        },
+        {
+          "version": "1.1.11",
+          "hubVersion": "1.1.91",
+          "channel": "stable",
+          "published": true,
+          "sourceRelease": "https://github.com/DGVeLab/JoyDeck/releases/tag/SW1.1.91-FW1.1.11",
+          "sourceTag": "SW1.1.91-FW1.1.11",
+          "parts": [
+            {
+              "path": "./firmware/joydeck1/1.1.11/firmware-merged.bin",
+              "offset": 0,
+              "sha256": "8e5e0cfeba6bc1ae5ca9836144f88038cfe5eda1cd2c0636891234a439aae287"
+            }
+          ]
+        },
+        {
+          "version": "1.1.10",
+          "hubVersion": "1.1.87",
+          "channel": "stable",
+          "published": true,
+          "sourceRelease": "https://github.com/DGVeLab/JoyDeck/releases/tag/SW1.1.87-FW1.1.10",
+          "sourceTag": "SW1.1.87-FW1.1.10",
+          "parts": [
+            {
+              "path": "./firmware/joydeck1/1.1.10/firmware-merged.bin",
+              "offset": 0,
+              "sha256": "28eab37661e60e0008e277d0648a5f6660d008bdda42a430aa4c9369100f2ed2"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "sentra-home",
