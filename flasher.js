@@ -331,8 +331,10 @@ $("officialInstallBtn").addEventListener("click",()=>action(async()=>{
   log("Official firmware write completed.");
   const elapsed=performance.now()-started;
   const resetMessage=await autoReset();
-  showResult("officialResult","success","Firmware write completed",
-    selectedProject.name+" v"+selectedRelease.version+" · "+sizes.reduce((a,b)=>a+b,0).toLocaleString()+" bytes · "+(elapsed/1000).toFixed(1)+" s. "+resetMessage+" Application startup is not automatically verified.");
+  showResult("officialResult","success","Firmware written",
+    selectedProject.name+" · FW "+selectedRelease.version+
+    (selectedRelease.hubVersion?" · Hub "+selectedRelease.hubVersion:"")+
+    " · "+(elapsed/1000).toFixed(1)+" s. "+resetMessage+" Verify device startup.");
 }));
 async function loadCatalog(){
   try{
