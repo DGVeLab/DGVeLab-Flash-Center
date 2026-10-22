@@ -3,11 +3,10 @@
 
 Invoked by GitHub Actions, not in the browser. Official release assets remain
 the source of truth; extracted merged firmware files are cached for GitHub Pages.
-Only manual workflow_dispatch triggers are enabled during the pilot.
+Runs every six hours via GitHub Actions or by manual workflow_dispatch.
 """
 import hashlib
 import json
-import os
 from pathlib import Path
 import re
 import subprocess
@@ -105,23 +104,42 @@ def main():
         }
         catalog["projects"].insert(1, project)
 
-    entries = []
+    existing = {release["version"]: release for release in project.get("releases", [])}
+    entries_by_version = dict(existing)
     for version in sorted(versions, key=lambda v: tuple(map(int, v.split("."))), reverse=True):
         rel, asset, hub = versions[version]
-        with tempfile.TemporaryDirectory(prefix="joydeck-sync-") as temp:
-            folder = Path(temp)
-            archive = folder / asset["name"]
-            download(asset["browser_download_url"], archive)
-            image_path = extract_archive(archive, folder / "extracted") if ARCHIVE.search(asset["name"]) else archive
-            image = image_path.read_bytes()
-            digest = verify_merged(image)
-
         path = ROOT / "firmware" / "joydeck1" / version / "firmware-merged.bin"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if not path.exists() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
-            path.write_bytes(image)
-        print(f"JD1 {version}: {len(image)} bytes, SHA256 {digest}, Hub {hub}")
-        entries.append({
+        known = existing.get(version)
+        cached = (known is not None and
+                  known.get("sourceTag") == rel["tag_name"] and
+                  path.is_file() and
+                  hashlib.sha256(path.read_bytes()).hexdigest() ==
+                  known.get("parts", [{}])[0].get("sha256"))
+
+        if cached:
+            digest = known["parts"][0]["sha256"]
+            size = path.stat().st_size
+            print(f"JD1 {version}: already imported, skipping asset download")
+        else:
+            with tempfile.TemporaryDirectory(prefix="joydeck-sync-") as temp:
+                folder = Path(temp)
+                archive = folder / asset["name"]
+                download(asset["browser_download_url"], archive)
+                image_path = extract_archive(archive, folder / "extracted") if ARCHIVE.search(asset["name"]) else archive
+                image = image_path.read_bytes()
+                digest = verify_merged(image)
+                size = len(image)
+
+            if path.exists() and hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+                raise ValueError(
+                    f"Firmware {version} has changed content; refusing to silently overwrite a published version."
+                )
+            if not path.exists():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(image)
+
+        print(f"JD1 {version}: {size} bytes, SHA256 {digest}, Hub {hub}")
+        entries_by_version[version] = {
             "version": version,
             "hubVersion": hub,
             "channel": "stable",
@@ -135,7 +153,10 @@ def main():
             }],
         })
 
-    project["releases"] = entries
+    project["releases"] = [
+        entries_by_version[version]
+        for version in sorted(entries_by_version, key=lambda v: tuple(map(int, v.split("."))), reverse=True)
+    ]
     project["status"] = "available"
     CATALOG.write_text(json.dumps(catalog, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
