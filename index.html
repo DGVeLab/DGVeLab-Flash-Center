@@ -11,7 +11,7 @@
   <main class="shell">
     <header class="topbar">
       <a class="brand" href="./"><span class="brandmark">D<span>G</span></span><span>DGVeLab <strong>Flash Center</strong></span></a>
-      <span class="release">BETA · v0.3</span>
+      <span class="release">BETA · v0.4</span>
     </header>
     <section class="hero">
       <div class="eyebrow">ESP32 / ESP8266 · WEB FIRMWARE TOOL</div>
@@ -23,7 +23,7 @@
       <button id="advancedTab" class="tab" aria-selected="false" aria-controls="advancedPanel">⌘ &nbsp; Advanced Flasher</button>
     </nav>
     <section class="panel" id="officialPanel">
-      <div class="sectionheading"><div><h2>Choose your project</h2><p>Select an official DGVeLab device.</p></div><span class="tag">CATALOG PREVIEW</span></div>
+      <div class="sectionheading"><div><h2>Choose your project</h2><p>Select an official DGVeLab device.</p></div><span class="tag">OFFICIAL RELEASES</span></div>
       <div id="officialDevices" class="devices" aria-label="Official devices"><span class="fileinfo">Loading official catalog…</span></div>
       <div class="officialdetails" id="officialDetails">
         <div class="detailtitle"><strong id="officialProjectName">Select a device</strong><span id="officialState" class="tag">COMING SOON</span></div>
@@ -36,6 +36,7 @@
       <div class="actions"><button id="officialConnectBtn" class="secondary" type="button" disabled>Connect USB</button><button id="officialInstallBtn" class="primary" type="button" disabled>Install Official Firmware →</button></div>
       <div class="progressrow officialprogress"><progress id="officialProgress" max="100" value="0"></progress><span id="officialProgressLabel">0%</span></div>
       <div class="fileinfo" id="officialDeviceStatus" role="status">No device connected.</div>
+      <section id="officialResult" class="flash-result" hidden role="status" aria-live="polite"></section>
     </section>
     <section class="panel hidden" id="advancedPanel">
       <div class="sectionheading"><div><h2>Advanced flasher</h2><p>Prepare local firmware images for custom ESP projects.</p></div><span class="tag">BETA · HARDWARE TEST REQUIRED</span></div>
@@ -48,10 +49,18 @@
       <div class="settingsgrid"><div><label for="flashMode">Flash mode</label><select id="flashMode"><option value="dio">DIO</option><option value="qio">QIO</option><option value="dout">DOUT</option><option value="qout">QOUT</option></select></div><div><label for="flashFreq">Flash frequency</label><select id="flashFreq"><option value="40m">40 MHz</option><option value="80m">80 MHz</option><option value="26m">26 MHz</option><option value="20m">20 MHz</option></select></div><div><label for="flashSize">Flash size</label><select id="flashSize"><option value="4MB">4MB</option><option value="2MB">2MB</option><option value="8MB">8MB</option><option value="16MB">16MB</option><option value="1MB">1MB</option><option value="512KB">512KB</option></select></div></div>
       <div class="actions commands"><button id="flashBtn" class="primary" type="button" disabled>Flash Firmware →</button><button id="eraseBtn" class="danger" type="button" disabled>Erase Entire Flash</button><button id="resetBtn" class="secondary" type="button" disabled>Reset Device</button></div>
       <div class="progressrow"><progress id="flashProgress" max="100" value="0"></progress><span id="progressLabel">0%</span></div>
+      <section id="advancedResult" class="flash-result" hidden role="status" aria-live="polite"></section>
       <div class="sectionheading logheading"><div><h2>Activity log</h2><p>Connection and flashing messages.</p></div><button id="clearLogBtn" class="secondary" type="button">Clear log</button></div>
       <pre id="activityLog" role="log" aria-live="polite">Ready. Connect a device to begin.</pre>
       <div class="notice">Advanced operations can permanently erase device settings or install incompatible firmware. Test on a spare ESP board first. Close Arduino Serial Monitor, PlatformIO or other apps using the COM port.</div>
     </section>
+    <details class="driver-help"><summary>USB connection help &amp; drivers (CP210x · CH340 · CH9102)</summary>
+      <div class="driver-body"><p>If no serial port appears, try a USB data cable, connect the board directly, close other COM-port applications, and check Windows Device Manager. Some boards require holding BOOT while connecting.</p>
+      <p>Install drivers only when needed, from the manufacturer:</p>
+      <ul><li><a href="https://www.silabs.com/software-and-tools/usb-to-uart-bridge-vcp-drivers" target="_blank" rel="noopener noreferrer">Silicon Labs — CP210x VCP</a></li>
+      <li><a href="https://www.wch-ic.com/downloads/CH341SER_ZIP.html" target="_blank" rel="noopener noreferrer">WCH — CH340 / CH341</a></li>
+      <li><a href="https://www.wch-ic.com/downloads/CH343SER_ZIP.html" target="_blank" rel="noopener noreferrer">WCH — CH9102 / CH343 family</a></li></ul>
+      <p>If an automatic reset fails, press EN/RST on the board. Do not disconnect the cable during a flash operation.</p></div></details>
     <footer><span>© DGVeLab · Made for makers</span><span id="support">Use Chrome or Edge desktop with Web Serial support.</span></footer>
   </main>
   <script src="app.js"></script>
