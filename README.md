@@ -47,3 +47,37 @@ Use `offset` as a decimal number; the example uses decimal zero. For separate im
 ## Beta v0.4 — post-flash behavior
 
 After a successful write, the browser requests an RTS-based hardware reset. Some boards may require EN/RST manually. The completion panel reports bytes and elapsed time, but does **not** claim that the application booted or independently verified flash readback. USB disconnection events are reported and require reconnection before programming again. A collapsible USB driver guide links to the Silicon Labs CP210x and WCH CH340/CH9102 manufacturer pages.
+
+## JoyDeck 1 release synchronization (pilot)
+
+Source of truth: [DGVeLab/JoyDeck Releases](https://github.com/DGVeLab/JoyDeck/releases).
+The release tag format is `SW<HubVersion>-FW<FirmwareVersion>`, e.g.
+`SW1.1.91-FW1.1.12`.
+
+The importer retrieves firmware from published release assets (`.dgv`, `.bin`, or a
+`.rar` containing exactly one merged image). It validates the classic ESP32
+bootloader/application positions, calculates SHA-256, then stores the raw BIN
+under `firmware/joydeck1/<FWVersion>/firmware-merged.bin` and updates
+`firmware/catalog.json` with both firmware and Hub versions.
+
+**First-time test**:
+
+1. Go to **Actions → Sync JoyDeck 1 releases → Run workflow**.
+2. Select `main` and run the workflow.
+3. Check the job log and verify that `firmware/joydeck1/` contains versioned
+   BIN files; the Actions bot also commits the catalog update.
+4. Open the published Flash Center with a hard refresh, select JoyDeck 1,
+   and confirm that its version menu includes the matched Hub versions.
+5. Test flashing a spare classic ESP32 board before publicly recommending it.
+
+If the workflow cannot push, allow **Read and write permissions** under
+Settings → Actions → General → Workflow permissions. Other branch protection
+rules may also prevent the push.
+
+This workflow runs *manually only* during the pilot. No recurring scan or
+cross-repository webhook is enabled yet, and subsequent releases won't
+synchronize unless the workflow is run again. GitHub Pages may take a little
+time to reflect committed catalog changes.
+
+The installer does not run JoyDeck Hub in the browser. Firmware and Hub
+remain paired through the original project's release metadata.
