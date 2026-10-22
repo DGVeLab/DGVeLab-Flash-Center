@@ -22,8 +22,7 @@ layout and SHA-256, and stores a versioned BIN under
 `firmware/joydeck1/<firmware-version>/firmware-merged.bin`.
 
 To synchronize: **Actions → Sync JoyDeck 1 releases → Run workflow** on `main`.
-The workflow runs manually until automatic release checking is enabled.
-It updates `firmware/catalog.json`, preserving the paired JoyDeck Hub version
+The workflow checks for new published JoyDeck 1 releases automatically every six hours\n(UTC schedule: `17 */6 * * *`) and can still be started manually.\nWhen nothing changes, no commit is generated; previously imported firmware images\nare reused instead of downloaded again. Historical versions remain in the catalog.\nIt updates `firmware/catalog.json`, preserving the paired JoyDeck Hub version
 and a link to the original release.
 
 ## Requirements and safety
@@ -38,3 +37,11 @@ Firmware checksums establish file consistency with the published catalog,
 not a separate cryptographic publisher signature.
 
 CP210x and CH340/CH9102 driver links are available on the site.
+
+The scheduled run is best-effort: GitHub Actions cron jobs can be delayed or
+occasionally skipped. The manual **Run workflow** button remains available.
+Only JoyDeck 1 releases are imported. A release that reuses an existing
+firmware version but pairs it with a newer Hub may update the displayed Hub
+version; the firmware binary is not duplicated. If the same firmware version
+is republished with different binary bytes, the job fails safely instead of
+silently overwriting an existing public firmware file.
