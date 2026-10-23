@@ -17,6 +17,26 @@ function showResult(id, state, heading, message) {
  const p=document.createElement("p");p.textContent=message;el.append(strong,p);
 }
 function clearResult(id){$(id).hidden=true;$(id).replaceChildren();}
+function connectionAlert(message){
+  for(const id of ["officialConnectionAlert","advancedConnectionAlert"]){
+    const el=$(id);
+    if(!el)continue;
+    el.hidden=!message;
+    el.textContent=message||"";
+  }
+}
+function connectionErrorMessage(error,stage){
+  const name=String(error?.name||"");
+  const message=String(error?.message||error||"");
+  // A dismissed browser chooser is not a failed connection.
+  if(stage==="selection"&&name==="NotFoundError")return "";
+  if(stage==="opening" && /NetworkError|InvalidStateError|NotReadableError|AbortError/i.test(name))
+    return "Unable to open the USB port. It may already be in use by JoyDeck Hub, a serial monitor or another application. Close the other program and try again.";
+  if(/access denied|permission|in use|already open|busy|failed to open|could not open|cannot open|open failed/i.test(message))
+    return "USB port unavailable or already in use. Close JoyDeck Hub, Arduino/PlatformIO serial monitor and other COM-port applications, then retry.";
+  if(stage==="opening")return "Could not connect to the selected USB port. Check the cable, driver and other applications using the port, then retry.";
+  return "Connection failed: "+message+". Check the USB connection and try again.";
+}
 async function autoReset(){
   // After a successful write, return the serial port to Windows so JoyDeck Hub
   // or another desktop application can open it without unplugging the USB cable.
@@ -91,16 +111,20 @@ async function disconnect() {
 }
 $("connectBtn").addEventListener("click", async () => {
   if (!("serial" in navigator)) return log("Web Serial unavailable: use Chrome or Edge desktop over HTTPS.");
-  busy = true; unplugged=false; sync();
+  busy = true; unplugged=false; connectionAlert(""); sync();
+  let stage="selection";
   try {
     log("Select a serial port in the browser dialog.");
     port = await navigator.serial.requestPort();
+    stage="opening";
     transport = new Transport(port, true);
     transport.setDeviceLostCallback?.(()=>lostConnection("USB connection lost during serial communication."));
     loader = new ESPLoader({ transport, baudrate: Number($("baud").value), terminal, debugLogging: false });
     const chipName = await loader.main();
+    stage="connected";
     $("detectedChip").textContent = chipName + " · " + $("baud").value + " baud";
     log("Connected. Detected chip: " + chipName);
+    connectionAlert("");
     // Use only chip-supported choices, defaulting to non-destructive 'keep' settings.
     const mode = $("flashMode"), freq = $("flashFreq"), size = $("flashSize");
     mode.innerHTML = ["keep","dio","qio","dout","qout"].map(v=>'<option value="'+v+'">'+v.toUpperCase()+'</option>').join("");
@@ -109,14 +133,23 @@ $("connectBtn").addEventListener("click", async () => {
     const sizeVals = Object.keys(loader.chip?.FLASH_SIZES || {});
     size.innerHTML = ["keep","detect", ...sizeVals].map(v=>'<option value="'+v+'">'+v+'</option>').join("");
   } catch (e) {
-    log("Connection failed: " + (e.message || e));
-    try { if (transport) await transport.disconnect(); } catch {}
+    const notice=connectionErrorMessage(e,stage);
+    if(notice){
+      log("Connection failed ("+stage+"): "+(e?.name||"Error")+" — "+(e?.message||e));
+      connectionAlert(notice);
+    }else{
+      log("USB port selection canceled.");
+    }
+    try { if (transport) await transport.disconnect(); } catch (cleanupError) {
+      log("Port cleanup warning: "+(cleanupError?.message||cleanupError));
+    }
     loader=null; transport=null; port=null;
+    $("detectedChip").textContent="Connect an ESP device via USB.";
   } finally { busy=false; sync(); }
 });
 $("disconnectBtn").addEventListener("click",async()=>{
   busy=true;sync();
-  try {await disconnect(); log("Disconnected.");}
+  try {await disconnect(); connectionAlert(""); log("Disconnected.");}
   catch(e){log("Disconnect error: "+e.message);}
   finally{busy=false;sync();}
 });
