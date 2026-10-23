@@ -272,9 +272,20 @@ $("resetBtn").addEventListener("click",()=>action(async()=>{
 }));
 
 const mergeMaxSize=16*1024*1024;
-function proposeOffset(filename, files){
+async function proposeOffset(file, files){
+  const filename=file.name;
   const name=filename.toLowerCase().replace(/[_\s-]+/g,"");
-  // Suggestions intentionally cover only the classic ESP32 Arduino/ESP-IDF layout.
+  // A classic ESP32 merged image includes bootloader and application at fixed offsets.
+  // Inspect image bytes rather than trusting the filename alone.
+  if(/merged/i.test(name) && /\.(bin|dgv)$/i.test(filename)){
+    if(file.size>=0x10018){
+      const header=new Uint8Array(await file.slice(0x1000,0x1001).arrayBuffer());
+      const app=new Uint8Array(await file.slice(0x10000,0x10001).arrayBuffer());
+      if(header[0]===0xe9 && app[0]===0xe9)return "0x0";
+    }
+    return null;
+  }
+  // Suggestions for separate images follow the classic ESP32 Arduino/ESP-IDF layout.
   if(/bootloader/.test(name))return "0x1000";
   if(/bootapp0/.test(name))return "0xe000";
   if(/partition/.test(name))return "0x8000";
@@ -283,10 +294,9 @@ function proposeOffset(filename, files){
      /bootloader/.test(names) && /partition/.test(names))return "0x10000";
   return null;
 }
-$("autoOffsetsBtn").addEventListener("click",()=>{
+$("autoOffsetsBtn").addEventListener("click",async()=>{
   if(busy)return;
   const rows=[...$("fileRows").children];
-  let changes=0,uncertain=[];
   const files=rows.map(row=>row.querySelector(".binfile").files[0]).filter(Boolean);
   if(files.length===0){
     showResult("advancedResult","warning","No files selected","Choose BIN files before requesting offset suggestions.");
@@ -296,18 +306,28 @@ $("autoOffsetsBtn").addEventListener("click",()=>{
     showResult("advancedResult","warning","Manual offsets required","Automatic suggestions are currently limited to classic ESP32. Enter and verify offsets manually for other chips.");
     return;
   }
-  for(const row of rows){
-    const file=row.querySelector(".binfile").files[0];
-    if(!file)continue;
-    const found=proposeOffset(file.name,files);
-    if(found){row.querySelector(".fileoffset").value=found;changes++;}
-    else uncertain.push(file.name);
-  }
-  const note=changes+" known offset(s) suggested. "+
-    (uncertain.length?"Set offsets manually for: "+uncertain.join(", ")+". ":"")+
-    "Suggested layout: classic ESP32 only. Verify every address against the firmware build before merging or flashing.";
-  log(note);
-  showResult("advancedResult","warning","Offsets need verification",note);
+  busy=true;sync();
+  try{
+    let changes=0;
+    const uncertain=[];
+    for(const row of rows){
+      const file=row.querySelector(".binfile").files[0];
+      if(!file)continue;
+      const offset=await proposeOffset(file,files);
+      if(offset!==null){row.querySelector(".fileoffset").value=offset;changes++;}
+      else uncertain.push(file.name);
+    }
+    const note=changes+" offset(s) suggested. "+
+      (uncertain.length?"Check offsets manually for: "+uncertain.join(", ")+". ":"")+
+      "Verify all offsets against your firmware layout.";
+    log(note);
+    showResult("advancedResult",uncertain.length?"warning":"success",
+      uncertain.length?"Offsets need verification":"Offsets suggested",note);
+  }catch(e){
+    const note="Could not inspect firmware files: "+(e.message||e);
+    log(note);
+    showResult("advancedResult","error","Offset check failed",note);
+  }finally{busy=false;sync();}
 });
 $("mergeBtn").addEventListener("click",async()=>{
   if(busy)return;
