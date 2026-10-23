@@ -1,5 +1,5 @@
 // DGVeLab Flash Center — experimental hardware flasher, esptool-js v0.7.0
-import { ESPLoader, Transport } from "https://unpkg.com/esptool-js@0.7.0/bundle.js";
+import { ESPLoader, Transport } from "./vendor/esptool-js/0.7.0/bundle.js";
 const $ = id => document.getElementById(id);
 let transport = null, loader = null, port = null, busy = false, rowId = 0;
 let selectedProject = null, selectedRelease = null, officialCatalog = null;

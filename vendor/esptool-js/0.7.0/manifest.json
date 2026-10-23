@@ -1,0 +1,7 @@
+{
+  "package": "esptool-js",
+  "version": "0.7.0",
+  "source": "https://unpkg.com/esptool-js@0.7.0/bundle.js",
+  "sha256": "00ebe6fb0b202976d3e2a3c6b9a6bd438c26a81d2af6739c95ac276a64c1a84e",
+  "upstream": "https://github.com/espressif/esptool-js"
+}
