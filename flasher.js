@@ -31,7 +31,7 @@ function connectionErrorMessage(error,stage){
   // A dismissed browser chooser is not a failed connection.
   if(stage==="selection"&&name==="NotFoundError")return "";
   if(stage==="opening" && /NetworkError|InvalidStateError|NotReadableError|AbortError/i.test(name))
-    return "Unable to open the USB port. It may already be in use by JoyDeck Hub, a serial monitor or another application. Close the other program and try again.";
+    return "Unable to open the USB port. It may already be in use by a serial monitor or another application. Close the other program and try again.";
   if(/access denied|permission|in use|already open|busy|failed to open|could not open|cannot open|open failed/i.test(message))
     return "USB port unavailable or already in use. Close JoyDeck Hub, Arduino/PlatformIO serial monitor and other COM-port applications, then retry.";
   if(stage==="opening")return "Could not connect to the selected USB port. Check the cable, driver and other applications using the port, then retry.";
