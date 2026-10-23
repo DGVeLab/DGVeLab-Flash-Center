@@ -8,7 +8,7 @@ DGVeLab Flash Center is a web-based tool for installing official DGVeLab firmwar
 
 ## Features
 
-- **Official Firmware** — Choose a project and firmware version from the available catalog, then install it through USB.
+- **ODGVeLab Projects** — Choose a project and firmware version from the available catalog, then install it through USB.
 - **Advanced Flasher** — Flash local `.bin` or `.dgv` files, with configurable memory offsets and flash settings.
 - **Device detection** — Identify the connected ESP chip before programming.
 - **Integrity checks** — Validate official firmware downloads against their published SHA-256 checksums.
