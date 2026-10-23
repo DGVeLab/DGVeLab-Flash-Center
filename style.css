@@ -201,3 +201,16 @@ button:not(:disabled){cursor:pointer}
 .official-panel .official-field select,
 .advanced-panel .advanced-setting select,
 .advanced-panel .settingsgrid select{font-size:14px;font-weight:600}
+
+/* Optional ESP-NOW MAC peer configuration */
+.peer-tools{margin:22px 0 6px;padding:0 16px 16px;border:1px solid #344566;border-radius:11px;background:#132139}
+.peer-tools summary{padding:15px 0;cursor:pointer;color:#c5d5ef;font-size:13px;font-weight:700}
+.peer-help{font-size:12px;line-height:1.6;color:#b7c6df;margin:0 0 16px}
+.peer-form{display:grid;grid-template-columns:minmax(190px,1fr) minmax(110px,140px) auto auto;gap:11px;align-items:end}
+.peer-field label{display:block;margin:0 0 9px;font-size:13px;font-weight:700;color:#c5d5ef}
+.peer-field input,.peer-field select{height:49px;max-width:none;width:100%;font-size:14px}
+.peer-form button{min-width:0!important;height:49px;padding:10px 14px!important}
+.peer-note{font-size:12px;line-height:1.6;color:#aebed7;margin:14px 0 0}
+.peer-tools .flash-result{margin-top:14px}
+@media(max-width:920px){.peer-form{grid-template-columns:minmax(0,1fr) 140px}.peer-form button{width:100%}}
+@media(max-width:520px){.peer-form{grid-template-columns:minmax(0,1fr)}.peer-form button{width:100%}}
