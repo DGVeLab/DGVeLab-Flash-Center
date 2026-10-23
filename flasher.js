@@ -256,7 +256,7 @@ function catalogUpdate(){
     $("officialNotice").textContent="No firmware available for this project.";
   }else{
     for(const release of releases)releaseEl.add(new Option(
-      release.version+(release.hubVersion?" · Hub "+release.hubVersion:""),release.version));
+      release.version,release.version));
     releaseEl.value=selectedRelease.version;
     releaseEl.disabled=busy;
     $("officialState").textContent="AVAILABLE";
