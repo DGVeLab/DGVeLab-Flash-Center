@@ -426,7 +426,7 @@ async function peerSerialExchange(selectedPort, command, timeoutMs=5000){
     // Do not reuse the esptool transport: the target must run its normal firmware.
     await selectedPort.open({baudRate:115200});
     writer=selectedPort.writable.getWriter();
-    await writer.write(new TextEncoder().encode(command+"\\n"));
+    await writer.write(new TextEncoder().encode(command+"\n"));
     writer.releaseLock();writer=null;
     log("Peer command sent at 115200 baud: "+command);
 
@@ -445,17 +445,17 @@ async function peerSerialExchange(selectedPort, command, timeoutMs=5000){
       if(result.done)break;
       buffer+=decoder.decode(result.value,{stream:true});
       // Some ESP boot messages contain nonprintable bytes.
-      buffer=buffer.replace(/[^\\x09\\x0A\\x0D\\x20-\\x7E]/g,"");
+      buffer=buffer.replace(/[^\x09\x0A\x0D\x20-\x7E]/g,"");
       if(buffer.length>4096)buffer=buffer.slice(-4096);
-      const lines=buffer.split(/\\r?\\n|\\r/);
+      const lines=buffer.split(/\r?\n|\r/);
       buffer=lines.pop()||"";
       for(const raw of lines){
         const line=raw.trim();
         if(!line)continue;
         log("Peer response: "+line.slice(0,180));
-        if(/(?:^|\\s)(?:ERR|ERROR|BADFMT)(?:\\b|:)/i.test(line))
+        if(/(?:^|\s)(?:ERR|ERROR|BADFMT)(?:\b|:)/i.test(line))
           throw Error("Device rejected the command: "+line.slice(0,160));
-        if(/(?:^|\\s)OK(?:\\b|$)/i.test(line)){
+        if(/(?:^|\s)OK(?:\b|$)/i.test(line)){
           completed=true;
           return line.slice(0,160);
         }
@@ -487,8 +487,8 @@ $("writePeerBtn").addEventListener("click",async()=>{
     return;
   }
   const command="SETPEER "+mac+" CH="+channel;
-  if(!confirm("DGVeLab-compatible firmware only.\\n\\nSend to the TARGET device:\\n"+command+
-       "\\n\\nThis saves the ESP-NOW peer configuration, NOT the factory MAC.\\nMake sure the target firmware is running and the flasher is disconnected. Continue?"))return;
+  if(!confirm("DGVeLab-compatible firmware only.\n\nSend to the TARGET device:\n"+command+
+       "\n\nThis saves the ESP-NOW peer configuration, NOT the factory MAC.\nMake sure the target firmware is running and the flasher is disconnected. Continue?"))return;
   peerWriting=true;sync();clearResult("peerResult");
   let target=null;
   try{
