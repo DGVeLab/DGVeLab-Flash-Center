@@ -62,6 +62,7 @@ async function autoReset(){
     transport=null;loader=null;port=null;
     unplugged=false;
     $("detectedChip").textContent="Disconnected after flash — ready for JoyDeck Hub.";
+    $("chipDetails").hidden=true;
   }
   return resetMessage;
 }
@@ -69,6 +70,7 @@ function lostConnection(message){
  if(unplugged)return;
  unplugged=true; loader=null;transport=null;port=null;
  $("detectedChip").textContent="USB disconnected. Reconnect to continue.";
+ $("chipDetails").hidden=true;
  log(message);
  showResult("advancedResult","warning","USB disconnected","Reconnect the board before the next operation.");
  showResult("officialResult","warning","USB disconnected","Reconnect the board before the next operation.");
@@ -82,6 +84,10 @@ function sync() {
   $("eraseBtn").disabled = busy || !connected;
   $("resetBtn").disabled = busy || !connected;
   $("addFileBtn").disabled = busy;
+  $("autoOffsetsBtn").disabled = busy;
+  $("mergeBtn").disabled = busy;
+  $("readChipBtn").disabled = busy || !connected;
+  $("advancedLed").classList.toggle("connected",connected);
   if ($("officialConnectBtn")) $("officialConnectBtn").disabled = busy || connected || !("serial" in navigator);
   if ($("officialInstallBtn")) $("officialInstallBtn").disabled = busy || !connected || !selectedRelease;
   if ($("officialDeviceStatus")) $("officialDeviceStatus").textContent = connected ? $("detectedChip").textContent : busy ? "Connecting / programming…" : "Not connected";
@@ -106,6 +112,7 @@ async function disconnect() {
     port = null;
     unplugged=false;
     $("detectedChip").textContent = "Connect an ESP device via USB.";
+    $("chipDetails").hidden=true;
     sync();
   }
 }
@@ -123,6 +130,7 @@ $("connectBtn").addEventListener("click", async () => {
     const chipName = await loader.main();
     stage="connected";
     $("detectedChip").textContent = chipName + " · " + $("baud").value + " baud";
+    $("chipDetails").hidden=true;
     log("Connected. Detected chip: " + chipName);
     connectionAlert("");
     // Use only chip-supported choices, defaulting to non-destructive 'keep' settings.
@@ -162,9 +170,18 @@ function addRow(offset = "0x0") {
   file.className = "binfile"; file.type="file"; file.accept=".bin,.dgv,application/octet-stream"; file.setAttribute("aria-label","Firmware BIN file");
   const remove=document.createElement("button");
   remove.type="button";remove.className="secondary";remove.textContent="Remove";
-  remove.addEventListener("click",()=>{if(!busy){row.remove();if(!$("fileRows").children.length)addRow();}});
+  remove.addEventListener("click",()=>{if(!busy && $("fileRows").children.length>1){row.remove();updateRemoveButtons();}});
   row.append(address,file,remove);
   $("fileRows").append(row);
+  updateRemoveButtons();
+}
+function updateRemoveButtons(){
+  const rows=[...$("fileRows").children];
+  rows.forEach((row,i)=>{
+    const button=row.querySelector("button");
+    // The first file is mandatory: no Remove button is needed.
+    button.hidden=i===0;
+  });
 }
 $("addFileBtn").addEventListener("click",()=>addRow("0x10000"));
 addRow();
@@ -253,6 +270,96 @@ $("eraseBtn").addEventListener("click",()=>action(async()=>{
 $("resetBtn").addEventListener("click",()=>action(async()=>{
   await loader.after("hard_reset");log("Hard reset requested. If the device remains in bootloader mode, disconnect and reconnect USB.");
 }));
+
+const mergeMaxSize=16*1024*1024;
+function proposeOffset(filename){
+  const name=filename.toLowerCase().replace(/[_\s-]+/g,"");
+  if(/bootloader/.test(name))return "0x1000";
+  if(/bootapp0/.test(name))return "0xe000";
+  if(/partition/.test(name))return "0x8000";
+  // Do not guess the address for application, filesystem or other binaries.
+  return null;
+}
+$("autoOffsetsBtn").addEventListener("click",()=>{
+  if(busy)return;
+  const rows=[...$("fileRows").children];
+  let changes=0,uncertain=[];
+  for(const row of rows){
+    const file=row.querySelector(".binfile").files[0];
+    if(!file)continue;
+    const found=proposeOffset(file.name);
+    if(found){row.querySelector(".fileoffset").value=found;changes++;}
+    else uncertain.push(file.name);
+  }
+  const note=changes+" known offset(s) suggested. "+
+    (uncertain.length?"Set offsets manually for: "+uncertain.join(", ")+". ":"")+
+    "Verify all addresses against the firmware build before merging or flashing.";
+  log(note);
+  showResult("advancedResult","warning","Offsets need verification",note);
+});
+$("mergeBtn").addEventListener("click",async()=>{
+  if(busy)return;
+  busy=true;sync();
+  try{
+    const meta=collectMetadata();
+    if(meta.length<2)throw Error("Choose at least two BIN files to merge.");
+    const end=Math.max(...meta.map(x=>x.address+x.file.size));
+    if(end>mergeMaxSize)throw Error("Merged output exceeds the 16 MiB browser safety limit.");
+    if(!confirm("Create a merged image with the selected offsets?\n\n"+
+       meta.map(x=>x.file.name+" @ 0x"+x.address.toString(16)).join("\n")+
+       "\n\nUnfilled regions will use 0xFF. Make sure the offset map matches your firmware build."))return;
+    const merged=new Uint8Array(end);
+    merged.fill(0xff);
+    for(const entry of meta)merged.set(new Uint8Array(await entry.file.arrayBuffer()),entry.address);
+    const blob=new Blob([merged],{type:"application/octet-stream"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download="firmware-merged.bin";a.style.display="none";
+    document.body.append(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    const msg="Merged "+meta.length+" files · "+end.toLocaleString()+" bytes. Check the output before flashing.";
+    showResult("advancedResult","success","Merged BIN generated",msg);
+    log(msg);
+  }catch(e){
+    log("Merge error: "+(e.message||e));
+    showResult("advancedResult","error","Merge failed",e.message||String(e));
+  }finally{busy=false;sync();}
+});
+$("readChipBtn").addEventListener("click",()=>action(async()=>{
+  const details=[["Chip",loader.chip?.CHIP_NAME||$("detectedChip").textContent]];
+  try {
+    if(typeof loader.chip?.getChipDescription==="function")
+      details[0][1]=await loader.chip.getChipDescription(loader);
+  }catch(e){log("Chip description unavailable: "+(e.message||e));}
+  try {
+    if(typeof loader.chip?.readMac==="function")
+      details.push(["Factory MAC",await loader.chip.readMac(loader)]);
+    else details.push(["Factory MAC","Not supported by this chip"]);
+  }catch(e){details.push(["Factory MAC","Unavailable"]);log("MAC read failed: "+(e.message||e));}
+  try{
+    const id=await loader.readFlashId();
+    const n=Number(id)>>>0;
+    details.push(["Flash ID","0x"+n.toString(16).padStart(6,"0")]);
+    const size=loader.DETECTED_FLASH_SIZES?.[(n>>>16)&255];
+    if(size)details.push(["Flash size",size]);
+  }catch(e){details.push(["Flash ID","Unavailable"]);log("Flash ID read failed: "+(e.message||e));}
+  try{
+    if(typeof loader.chip?.getChipFeatures==="function"){
+      const features=await loader.chip.getChipFeatures(loader);
+      details.push(["Features",Array.isArray(features)?features.join(", "):String(features)]);
+    }
+  }catch(e){log("Chip feature read failed: "+(e.message||e));}
+  const container=$("chipDetails");container.replaceChildren();
+  for(const [name,value] of details){
+    const item=document.createElement("div");
+    const label=document.createElement("span");label.textContent=name;
+    const val=document.createElement("strong");val.textContent=String(value);
+    item.append(label,val);container.append(item);
+  }
+  container.hidden=false;
+  log("Chip info: "+details.map(([k,v])=>k+" = "+v).join("; "));
+}));
+
 $("clearLogBtn").addEventListener("click",()=>{logEl.textContent="Log cleared.";});
 if(!("serial" in navigator))log("Web Serial is unavailable. Open this page via HTTPS in desktop Chrome or Edge.");
 sync();
