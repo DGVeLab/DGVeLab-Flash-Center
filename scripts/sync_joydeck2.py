@@ -12,6 +12,7 @@ import re
 import subprocess
 import tempfile
 import urllib.request
+import urllib.error
 
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = ROOT / "firmware" / "catalog.json"
@@ -64,7 +65,14 @@ def verify_merged(image):
 
 
 def main():
-    releases = request_json(API)
+    try:
+        releases = request_json(API)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            print("JoyDeck2 releases not publicly accessible (repository private or unavailable).")
+            print("No changes to the public firmware catalog. Sync will retry at next scheduled run.")
+            return
+        raise
     versions = {}
     # GitHub releases are newest first. Only one Hub pairing per firmware version.
     for rel in releases:
