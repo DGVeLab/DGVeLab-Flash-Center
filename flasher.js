@@ -450,7 +450,10 @@ async function startPeerPump(){
     if(peerPort===serial && peerConnected){
       peerConnected=false;
       rejectPeerWait(Error("Firmware serial connection closed."));
+      log("Firmware serial connection ended unexpectedly.");
       sync();
+      // Release writer and port after the read pump has fully unwound.
+      queueMicrotask(()=>{if(peerPort===serial)closePeerPort().catch(e=>log("Serial cleanup: "+(e.message||e)));});
     }
   }
 }
