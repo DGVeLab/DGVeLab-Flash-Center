@@ -69,7 +69,6 @@ def main() -> None:
     html = index.read_text(encoding="utf-8")
     if "flasher.js?v=0.6.1" in html:
         html = html.replace("flasher.js?v=0.6.1", "flasher.js?v=0.6.2")
-        html = html.replace("BETA", "BETA")  # Versioning only; no changes to the interface.
         html = html.replace('class="release">v0.6.1<', 'class="release">v0.6.2<')
         index.write_text(html, encoding="utf-8")
 
