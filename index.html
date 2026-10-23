@@ -14,7 +14,7 @@
       <img class="banner-logo" src="./assets/dgvelab-logo.png" alt="DGVeLab DGV logo" width="124" height="124">
       <div class="banner-copy"><h1>DGVeLab <span>Flash Center</span></h1><p>USB firmware installer for ESP devices</p></div>
       <div class="banner-art" aria-hidden="true">DGV</div>
-      <span class="release">v0.7.1</span>
+      <span class="release">v0.7.2</span>
     </header>
     <nav class="tabs" aria-label="Flashing mode">
       <button id="officialTab" class="tab active" aria-selected="true" aria-controls="officialPanel" type="button">◇ &nbsp; DGVeLab Projects</button>
@@ -51,11 +51,11 @@
       <div class="notice official-notice" id="officialNotice">Flashing may overwrite saved settings. Verify your device.</div>
       <details class="peer-tools" id="peerTools">
         <summary>ESP-NOW · Peer MAC</summary>
-        <p class="peer-help">Open this panel before <strong>Connect USB</strong> to use the device's running firmware at 115200 baud. Read and Write use the EspNowPeerProvisioner protocol.</p>
+        
         <div class="peer-form">
           <div class="peer-field">
             <label for="peerMacInput">Peer MAC</label>
-            <input id="peerMacInput" type="text" autocomplete="off" spellcheck="false" maxlength="17" placeholder="AA:BB:CC:DD:EE:FF" aria-describedby="peerNote">
+            <input id="peerMacInput" type="text" autocomplete="off" spellcheck="false" maxlength="17" placeholder="AA:BB:CC:DD:EE:FF">
           </div>
           <div class="peer-field peer-channel">
             <label for="peerChannel">Channel</label>
@@ -70,7 +70,6 @@
           <button id="readPeerBtn" class="secondary" type="button" disabled>Read</button>
           <button id="writePeerBtn" class="primary" type="button" disabled>Write</button>
         </div>
-        <p id="peerNote" class="peer-note">Read: GETPEER · Write: SETPEER MAC CH=n. Changes the saved peer, not the factory MAC. The firmware may reboot after Write.</p>
         <div id="peerResult" class="flash-result" hidden role="status" aria-live="polite"></div>
       </details>
     </section>
@@ -132,6 +131,6 @@
     <footer><span>© DGVeLab · Made for makers</span><span id="support">Use Chrome or Edge desktop with Web Serial support.</span></footer>
   </main>
   <script src="app.js?v=0.6.0"></script>
-  <script type="module" src="flasher.js?v=0.7.1"></script>
+  <script type="module" src="flasher.js?v=0.7.2"></script>
 </body>
 </html>
