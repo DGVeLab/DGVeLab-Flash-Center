@@ -58,16 +58,17 @@ The advanced tools also provide **Read chip info** (chip description, factory MA
 
 Factory MAC reading through **Read chip info** remains an Advanced Flasher diagnostic. Runtime **Read / Write** ESP-NOW peer configuration belongs to DGVeLab Projects and requires compatible firmware.
 
-### ESP-NOW MAC / peer configuration
+### Peer Configuration
 
-The optional **ESP-NOW · Peer MAC** panel is under **DGVeLab Projects**.
+Use **Peer Configuration** in the **DGVeLab Projects** tab to read a device's MAC address or configure its ESP-NOW peer.
 
-1. Click **Connect USB** normally. The selected project/panel does not change how the initial USB connection is established.
-2. Click **Read** to retrieve the ESP chip's **factory hardware MAC** directly from the chip, regardless of the installed application firmware. The value fills the editable MAC field.
-3. If needed, edit the MAC and choose an ESP-NOW channel.
-4. Click **Write** to configure the connected target's peer address. The browser resets the chip into its installed application, releases the programming port, reopens the **same selected serial port** at 115200 baud and sends `SETPEER AA:BB:CC:DD:EE:FF CH=n`. A compatible firmware must reply with `OK SAVED VER=n`. The USB port is released afterward.
+1. Connect your ESP device using **Connect USB**.
+2. Expand **Peer Configuration**.
+3. Click **Read** to display the device's MAC address in the editable field.
+4. To configure a peer, enter the desired **Peer MAC**, select the **Channel**, and click **Write**.
+5. Check the result message before disconnecting the device.
 
-**Read never changes the chip's hardware MAC.** **Write does not reprogram eFuses or change the device's factory MAC:** it only sets the peer address used by compatible application firmware. The write operation requires firmware supporting `EspNowPeerProvisioner`; if it times out, verify the actual stored settings before attempting another write.
+**Note:** Writing a peer configuration requires a compatible DGVeLab firmware on the device. It does not change the device's factory MAC address.
 
 > **Warning:** Flash offsets depend on the firmware's memory layout. An incorrect offset, incompatible image, or erase operation can prevent the device from booting or permanently remove saved settings. Do not guess the addresses.
 
