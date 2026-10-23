@@ -1,0 +1,39 @@
+name: Build DGVeLab banner
+
+on:
+  push:
+    paths:
+      - '.github/workflows/build-banner.yml'
+      - 'scripts/build_banner.py'
+      - 'assets/dgvelab-logo.png'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dgvelab-banner
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Install banner renderer
+        run: python3 -m pip install --user 'cairosvg==2.7.1'
+      - name: Generate reusable banner in PNG and SVG
+        run: python3 scripts/build_banner.py
+      - name: Commit generated banner assets
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/dgvelab-flash-center-banner.png assets/dgvelab-flash-center-banner.svg
+          if ! git diff --cached --quiet; then
+            git commit -m "Generate DGVeLab banner for README and downloads"
+            git push
+          else
+            echo "Banner is up to date."
+          fi
