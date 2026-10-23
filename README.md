@@ -56,7 +56,19 @@ Use **Advanced Flasher** when you need to program a local firmware file.
 
 The advanced tools also provide **Read chip info** (chip description, factory MAC address, flash ID and flash size where supported), **Reset**, **Erase Flash**, and a collapsible **activity log**. Chip information requires a USB connection; merging files does not.
 
-A device MAC readout is not a MAC rewrite. Firmware-specific peer pairing commands, such as `SETPEER` used by some ESP-NOW projects, are not universal ESP tools and are intentionally not exposed in the generic Advanced Flasher.
+Factory MAC reading is generic; peer writing is supported only by DGVeLab-compatible runtime firmware and is kept in a clearly marked optional section.
+
+### ESP-NOW MAC / peer configuration
+
+The **Advanced Flasher → ESP-NOW · MAC / Peer configuration** section is available for devices running firmware that explicitly implements DGVeLab's serial `SETPEER` protocol.
+
+1. Connect the **source** ESP with **Connect USB**, then select **Read chip info** to obtain its **factory MAC**.
+2. The detected MAC is copied to the **Peer MAC address** field. You can also enter a MAC manually.
+3. Disconnect the flasher, connect the **target** ESP, and make sure its normal application firmware is running (reset the board if necessary).
+4. Choose the ESP-NOW channel (default **1**) and click **Write peer MAC**. Choose the target serial port in the browser.
+5. The browser sends `SETPEER AA:BB:CC:DD:EE:FF CH=1` at **115200 baud**, waits for a device confirmation and reports the result.
+
+**This does not alter the factory hardware MAC or write ESP eFuses.** It only configures a peer address when the target firmware supports the command. A timeout does not guarantee that no changes were made, so check the target configuration before repeating. The browser releases the serial port after the operation.
 
 > **Warning:** Flash offsets depend on the firmware's memory layout. An incorrect offset, incompatible image, or erase operation can prevent the device from booting or permanently remove saved settings. Do not guess the addresses.
 
