@@ -214,3 +214,14 @@ button:not(:disabled){cursor:pointer}
 .peer-tools .flash-result{margin-top:14px}
 @media(max-width:920px){.peer-form{grid-template-columns:minmax(0,1fr) 140px}.peer-form button{width:100%}}
 @media(max-width:520px){.peer-form{grid-template-columns:minmax(0,1fr)}.peer-form button{width:100%}}
+
+/* Projects-only ESP-NOW peer panel */
+.official-panel .peer-tools{margin-top:22px;margin-bottom:0}
+.official-panel .peer-form .primary,.official-panel .peer-form .secondary{
+  min-width:92px;min-height:49px;border-radius:10px;font-size:14px;font-weight:700;
+  padding:11px 18px
+}
+.official-panel .peer-form .primary{background:linear-gradient(180deg,#4a80f7,#3566dc)}
+.official-panel .peer-form button:disabled{opacity:.45;cursor:not-allowed}
+.official-panel .peer-form input{font-family:Consolas,"Segoe UI",monospace;letter-spacing:.03em}
+@media(max-width:600px){.official-panel .peer-form{grid-template-columns:1fr 1fr}.official-panel .peer-form .peer-field:first-child{grid-column:1/-1}}
