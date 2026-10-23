@@ -4,6 +4,8 @@ const $ = id => document.getElementById(id);
 let transport = null, loader = null, port = null, busy = false, rowId = 0;
 let selectedProject = null, selectedRelease = null, officialCatalog = null;
 let unplugged = false;
+let lastReadFactoryMac = "";
+let peerWriting = false;
 const logEl = $("activityLog");
 function log(message) {
   const time = new Date().toLocaleTimeString();
@@ -87,6 +89,8 @@ function sync() {
   $("autoOffsetsBtn").disabled = busy;
   $("mergeBtn").disabled = busy;
   $("readChipBtn").disabled = busy || !connected;
+  $("useReadMacBtn").disabled = busy || peerWriting || !lastReadFactoryMac;
+  $("writePeerBtn").disabled = busy || peerWriting || connected || !("serial" in navigator);
   $("advancedLed").classList.toggle("connected",connected);
   if ($("officialConnectBtn")) $("officialConnectBtn").disabled = busy || connected || !("serial" in navigator);
   if ($("officialInstallBtn")) $("officialInstallBtn").disabled = busy || !connected || !selectedRelease;
@@ -389,8 +393,120 @@ $("readChipBtn").addEventListener("click",()=>action(async()=>{
     item.append(label,val);container.append(item);
   }
   container.hidden=false;
+  const factory=details.find(([name])=>name==="Factory MAC")?.[1];
+  const normalized=normalizePeerMac(factory);
+  if(normalized){
+    lastReadFactoryMac=normalized;
+    $("peerMacInput").value=normalized;
+    log("Factory MAC available for ESP-NOW peer configuration: "+normalized);
+  }
   log("Chip info: "+details.map(([k,v])=>k+" = "+v).join("; "));
 }));
+
+
+/* ESP-NOW peer configuration for DGVeLab-compatible application firmware.
+   This is a runtime serial command, NOT an eFuse or hardware MAC write. */
+function normalizePeerMac(value){
+  if(typeof value!=="string")return "";
+  const raw=value.trim().replace(/[:-]/g,"").toUpperCase();
+  if(!/^[0-9A-F]{12}$/.test(raw))return "";
+  return raw.match(/.{2}/g).join(":");
+}
+$("useReadMacBtn").addEventListener("click",()=>{
+  if(!lastReadFactoryMac)return;
+  $("peerMacInput").value=lastReadFactoryMac;
+  clearResult("peerResult");
+});
+$("peerMacInput").addEventListener("input",()=>clearResult("peerResult"));
+
+async function peerSerialExchange(selectedPort, command, timeoutMs=5000){
+  let reader=null,writer=null;
+  let completed=false;
+  try{
+    // Do not reuse the esptool transport: the target must run its normal firmware.
+    await selectedPort.open({baudRate:115200});
+    writer=selectedPort.writable.getWriter();
+    await writer.write(new TextEncoder().encode(command+"\\n"));
+    writer.releaseLock();writer=null;
+    log("Peer command sent at 115200 baud: "+command);
+
+    reader=selectedPort.readable.getReader();
+    const decoder=new TextDecoder();
+    let buffer="";
+    const deadline=Date.now()+timeoutMs;
+    while(Date.now()<deadline){
+      const ms=deadline-Date.now();
+      let timer;
+      const timeout=new Promise(resolve=>{timer=setTimeout(()=>resolve({timeout:true}),ms);});
+      let result;
+      try{result=await Promise.race([reader.read(),timeout]);}
+      finally{clearTimeout(timer);}
+      if(result?.timeout)break;
+      if(result.done)break;
+      buffer+=decoder.decode(result.value,{stream:true});
+      // Some ESP boot messages contain nonprintable bytes.
+      buffer=buffer.replace(/[^\\x09\\x0A\\x0D\\x20-\\x7E]/g,"");
+      if(buffer.length>4096)buffer=buffer.slice(-4096);
+      const lines=buffer.split(/\\r?\\n|\\r/);
+      buffer=lines.pop()||"";
+      for(const raw of lines){
+        const line=raw.trim();
+        if(!line)continue;
+        log("Peer response: "+line.slice(0,180));
+        if(/(?:^|\\s)(?:ERR|ERROR|BADFMT)(?:\\b|:)/i.test(line))
+          throw Error("Device rejected the command: "+line.slice(0,160));
+        if(/(?:^|\\s)OK(?:\\b|$)/i.test(line)){
+          completed=true;
+          return line.slice(0,160);
+        }
+      }
+    }
+    throw Error("No confirmation received. Verify DGVeLab-compatible firmware, USB port, baud rate and reboot the target into normal operation.");
+  }finally{
+    if(reader){
+      try{await reader.cancel();}catch{}
+      try{reader.releaseLock();}catch{}
+    }
+    if(writer){try{writer.releaseLock();}catch{}}
+    try{await selectedPort.close();}catch(e){log("Peer serial port close warning: "+(e.message||e));}
+    if(completed)log("ESP-NOW peer configuration confirmed by device.");
+  }
+}
+
+$("writePeerBtn").addEventListener("click",async()=>{
+  if(busy||peerWriting)return;
+  if(loader||transport){
+    showResult("peerResult","warning","Disconnect first",
+      "Disconnect the flasher before using the target firmware serial port. Reset the board into normal operation.");
+    return;
+  }
+  const mac=normalizePeerMac($("peerMacInput").value);
+  const channel=Number($("peerChannel").value);
+  if(!mac||!Number.isInteger(channel)||channel<1||channel>13){
+    showResult("peerResult","error","Invalid peer settings","Enter a valid MAC address and channel 1–13.");
+    return;
+  }
+  const command="SETPEER "+mac+" CH="+channel;
+  if(!confirm("DGVeLab-compatible firmware only.\\n\\nSend to the TARGET device:\\n"+command+
+       "\\n\\nThis saves the ESP-NOW peer configuration, NOT the factory MAC.\\nMake sure the target firmware is running and the flasher is disconnected. Continue?"))return;
+  peerWriting=true;sync();clearResult("peerResult");
+  let target=null;
+  try{
+    target=await navigator.serial.requestPort();
+    const response=await peerSerialExchange(target,command);
+    showResult("peerResult","success","Peer MAC saved",response+" · "+mac+" · Channel "+channel);
+  }catch(e){
+    if(e?.name==="NotFoundError"){
+      log("Peer MAC port selection canceled.");
+    }else{
+      const message=String(e.message||e);
+      log("ESP-NOW peer configuration failed: "+message);
+      showResult("peerResult","error","Peer MAC not confirmed",message);
+    }
+  }finally{
+    peerWriting=false;sync();
+  }
+});
 
 $("clearLogBtn").addEventListener("click",()=>{logEl.textContent="Log cleared.";});
 if(!("serial" in navigator))log("Web Serial is unavailable. Open this page via HTTPS in desktop Chrome or Edge.");
