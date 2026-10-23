@@ -14,7 +14,7 @@
       <img class="banner-logo" src="./assets/dgvelab-logo.png" alt="DGVeLab DGV logo" width="124" height="124">
       <div class="banner-copy"><h1>DGVeLab <span>Flash Center</span></h1><p>USB firmware installer for ESP devices</p></div>
       <div class="banner-art" aria-hidden="true">DGV</div>
-      <span class="release">BETA · v0.6.1</span>
+      <span class="release">v0.6.1</span>
     </header>
     <nav class="tabs" aria-label="Flashing mode">
       <button id="officialTab" class="tab active" aria-selected="true" aria-controls="officialPanel" type="button">◇ &nbsp; DGVeLab Projects</button>
@@ -51,19 +51,17 @@
       <div class="notice official-notice" id="officialNotice">Flashing may overwrite saved settings. Verify your device.</div>
     </section>
     <section class="panel hidden advanced-panel" id="advancedPanel">
-      <div class="advanced-top">
-        <div class="advanced-heading"><h2>Advanced Flasher</h2><span class="tag">TOOLS</span></div>
-        <div class="advanced-connection">
-          <span class="connection-led" id="advancedLed" aria-hidden="true"></span>
-          <span id="deviceStatus">Disconnected</span>
-          <span id="detectedChip">Connect an ESP via USB.</span>
-        </div>
-      </div>
+
       <div class="advanced-controlbar">
         <div class="advanced-setting"><label for="baud">Baud rate</label><select id="baud"><option value="115200">115200</option><option value="230400">230400</option><option value="460800">460800</option><option value="921600">921600</option></select></div>
         <button id="connectBtn" class="primary" type="button">Connect USB</button>
         <button id="disconnectBtn" class="secondary" type="button" disabled>Disconnect</button>
         <button id="readChipBtn" class="secondary" type="button" disabled>Read chip info</button>
+      </div>
+      <div class="advanced-connection advanced-status">
+        <span class="connection-led" id="advancedLed" aria-hidden="true"></span>
+        <span id="deviceStatus">Disconnected</span>
+        <span id="detectedChip">Connect an ESP via USB.</span>
       </div>
       <div id="advancedConnectionAlert" class="connection-alert" role="alert" hidden></div>
       <div id="chipDetails" class="chip-details" hidden aria-live="polite"></div>
