@@ -151,7 +151,7 @@ def main():
                 "offset": 0,
                 "sha256": digest,
             }],
-        })
+        }
 
     project["releases"] = [
         entries_by_version[version]
