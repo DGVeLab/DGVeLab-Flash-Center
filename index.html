@@ -50,22 +50,55 @@
       <section id="officialResult" class="flash-result" hidden role="status" aria-live="polite"></section>
       <div class="notice official-notice" id="officialNotice">Flashing may overwrite saved settings. Verify your device.</div>
     </section>
-    <section class="panel hidden" id="advancedPanel">
-      <div class="sectionheading"><div><h2>Advanced flasher</h2><p>Prepare local firmware images for custom ESP projects.</p></div><span class="tag">BETA · HARDWARE TEST REQUIRED</span></div>
-      <div class="connectbar"><div><strong id="deviceStatus">Disconnected</strong><p id="detectedChip">Connect an ESP device via USB.</p></div><div class="actions"><button id="connectBtn" class="primary" type="button">Connect USB</button><button id="disconnectBtn" class="secondary" type="button" disabled>Disconnect</button></div></div>
+    <section class="panel hidden advanced-panel" id="advancedPanel">
+      <div class="advanced-top">
+        <div class="advanced-heading"><h2>Advanced Flasher</h2><span class="tag">TOOLS</span></div>
+        <div class="advanced-connection">
+          <span class="connection-led" id="advancedLed" aria-hidden="true"></span>
+          <span id="deviceStatus">Disconnected</span>
+          <span id="detectedChip">Connect an ESP via USB.</span>
+        </div>
+      </div>
+      <div class="advanced-controlbar">
+        <div class="advanced-setting"><label for="baud">Baud rate</label><select id="baud"><option value="115200">115200</option><option value="230400">230400</option><option value="460800">460800</option><option value="921600">921600</option></select></div>
+        <button id="connectBtn" class="primary" type="button">Connect USB</button>
+        <button id="disconnectBtn" class="secondary" type="button" disabled>Disconnect</button>
+        <button id="readChipBtn" class="secondary" type="button" disabled>Read chip info</button>
+      </div>
       <div id="advancedConnectionAlert" class="connection-alert" role="alert" hidden></div>
-      <label for="baud">Flash baud rate</label>
-      <select id="baud"><option value="115200">115200 (safe default)</option><option value="230400">230400</option><option value="460800">460800</option><option value="921600">921600</option></select>
-      <div class="sectionheading filesheading"><div><h2>Firmware images</h2><p>One merged BIN at the correct offset, or multiple partition images.</p></div><button id="addFileBtn" class="secondary" type="button">+ Add BIN</button></div>
+      <div id="chipDetails" class="chip-details" hidden aria-live="polite"></div>
+
+      <div class="sectionheading filesheading"><div><h2>Firmware images</h2><p>BIN / DGV with flash offsets</p></div></div>
+      <div class="file-headings" aria-hidden="true"><span>Offset</span><span>File</span><span></span></div>
       <div id="fileRows" class="filerows"></div>
-      <div class="hint">Enter the offset from your firmware build. For example, many full ESP32 merged images use 0x0; individual images require their own offsets. Never guess.</div>
-      <div class="settingsgrid"><div><label for="flashMode">Flash mode</label><select id="flashMode"><option value="dio">DIO</option><option value="qio">QIO</option><option value="dout">DOUT</option><option value="qout">QOUT</option></select></div><div><label for="flashFreq">Flash frequency</label><select id="flashFreq"><option value="40m">40 MHz</option><option value="80m">80 MHz</option><option value="26m">26 MHz</option><option value="20m">20 MHz</option></select></div><div><label for="flashSize">Flash size</label><select id="flashSize"><option value="4MB">4MB</option><option value="2MB">2MB</option><option value="8MB">8MB</option><option value="16MB">16MB</option><option value="1MB">1MB</option><option value="512KB">512KB</option></select></div></div>
-      <div class="actions commands"><button id="flashBtn" class="primary" type="button" disabled>Flash Firmware →</button><button id="eraseBtn" class="danger" type="button" disabled>Erase Entire Flash</button><button id="resetBtn" class="secondary" type="button" disabled>Reset Device</button></div>
+      <div class="file-actions">
+        <button id="addFileBtn" class="secondary" type="button">+ Add BIN</button>
+        <button id="autoOffsetsBtn" class="secondary" type="button">Suggest offsets</button>
+        <button id="mergeBtn" class="secondary" type="button">Merge BIN ↓</button>
+      </div>
+      <p class="hint">Offsets must match your firmware layout. Suggestions require review.</p>
+
+      <details class="advanced-options">
+        <summary>Flash settings</summary>
+        <div class="settingsgrid">
+          <div><label for="flashMode">Mode</label><select id="flashMode"><option value="keep">Keep</option><option value="dio">DIO</option><option value="qio">QIO</option><option value="dout">DOUT</option><option value="qout">QOUT</option></select></div>
+          <div><label for="flashFreq">Frequency</label><select id="flashFreq"><option value="keep">Keep</option><option value="40m">40 MHz</option><option value="80m">80 MHz</option><option value="26m">26 MHz</option><option value="20m">20 MHz</option></select></div>
+          <div><label for="flashSize">Size</label><select id="flashSize"><option value="keep">Keep</option><option value="detect">Detect</option><option value="4MB">4MB</option><option value="8MB">8MB</option><option value="16MB">16MB</option></select></div>
+        </div>
+      </details>
+      <div class="advanced-actions">
+        <button id="flashBtn" class="primary" type="button" disabled>Flash Firmware →</button>
+        <button id="resetBtn" class="secondary" type="button" disabled>Reset</button>
+        <button id="eraseBtn" class="danger" type="button" disabled>Erase Flash</button>
+      </div>
       <div class="progressrow"><progress id="flashProgress" max="100" value="0"></progress><span id="progressLabel">0%</span></div>
       <section id="advancedResult" class="flash-result" hidden role="status" aria-live="polite"></section>
-      <div class="sectionheading logheading"><div><h2>Activity log</h2><p>Connection and flashing messages.</p></div><button id="clearLogBtn" class="secondary" type="button">Clear log</button></div>
-      <pre id="activityLog" role="log" aria-live="polite">Ready. Connect a device to begin.</pre>
-      <div class="notice">Advanced operations can permanently erase device settings or install incompatible firmware. Test on a spare ESP board first. Close Arduino Serial Monitor, PlatformIO or other apps using the COM port.</div>
+      <details class="advanced-log">
+        <summary>Activity log</summary>
+        <div class="log-tools"><button id="clearLogBtn" class="secondary" type="button">Clear log</button></div>
+        <pre id="activityLog" role="log" aria-live="polite">Ready. Connect a device to begin.</pre>
+      </details>
+      <p class="advanced-warning">Erase and flash operations can overwrite firmware and settings.</p>
     </section>
     <details class="driver-help"><summary>USB connection help &amp; drivers (CP210x · CH340 · CH9102)</summary>
       <div class="driver-body"><p>If no serial port appears, try a USB data cable, connect the board directly, close other COM-port applications, and check Windows Device Manager. Some boards require holding BOOT while connecting.</p>
