@@ -47,11 +47,11 @@ Use **Advanced Flasher** when you need to program a local firmware file.
 2. Connect the ESP device using **Connect USB**.
 3. Choose one or more `.bin` or `.dgv` firmware images.
 4. Set the **correct flash offset** for every image.
-5. Review the available flash parameters. Keep the original settings unless your firmware instructions specify otherwise.
+5. Use **Suggest offsets** for common classic ESP32 file names, or enter your build's flash offsets manually. Always verify the addresses.\n6. Optionally select **Merge BIN** to create and download a single merged image from at least two selected images. Empty flash gaps are filled with `0xFF`; the merged image is not flashed automatically.\n7. Review the available flash parameters. Keep the original settings unless your firmware instructions specify otherwise.
 6. Click **Flash Firmware** and confirm the operation.
 7. Wait for the completion message before disconnecting the device.
 
-The advanced tools also provide **Reset Device**, **Erase Entire Flash**, and an **activity log**.
+The advanced tools also provide **Read chip info** (chip description, factory MAC address, flash ID and flash size where supported), **Reset**, **Erase Flash**, and a collapsible **activity log**. Chip information requires a USB connection; merging files does not.\n\nA device MAC readout is not a MAC rewrite. Firmware-specific peer pairing commands, such as `SETPEER` used by some ESP-NOW projects, are not universal ESP tools and are intentionally not exposed in the generic Advanced Flasher.
 
 > **Warning:** Flash offsets depend on the firmware's memory layout. An incorrect offset, incompatible image, or erase operation can prevent the device from booting or permanently remove saved settings. Do not guess the addresses.
 
