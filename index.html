@@ -45,6 +45,7 @@
           <button id="officialInstallBtn" class="primary" type="button" disabled>⇩ &nbsp; Install Firmware</button></div>
         <div class="connection-info"><span class="connection-led" id="officialLed" aria-hidden="true"></span><span id="officialDeviceStatus" role="status">Not connected</span></div>
       </div>
+      <div id="officialConnectionAlert" class="connection-alert" role="alert" hidden></div>
       <div class="progressrow officialprogress"><progress id="officialProgress" max="100" value="0"></progress><span id="officialProgressLabel">0%</span></div>
       <section id="officialResult" class="flash-result" hidden role="status" aria-live="polite"></section>
       <div class="notice official-notice" id="officialNotice">Flashing may overwrite saved settings. Verify your device.</div>
@@ -52,6 +53,7 @@
     <section class="panel hidden" id="advancedPanel">
       <div class="sectionheading"><div><h2>Advanced flasher</h2><p>Prepare local firmware images for custom ESP projects.</p></div><span class="tag">BETA · HARDWARE TEST REQUIRED</span></div>
       <div class="connectbar"><div><strong id="deviceStatus">Disconnected</strong><p id="detectedChip">Connect an ESP device via USB.</p></div><div class="actions"><button id="connectBtn" class="primary" type="button">Connect USB</button><button id="disconnectBtn" class="secondary" type="button" disabled>Disconnect</button></div></div>
+      <div id="advancedConnectionAlert" class="connection-alert" role="alert" hidden></div>
       <label for="baud">Flash baud rate</label>
       <select id="baud"><option value="115200">115200 (safe default)</option><option value="230400">230400</option><option value="460800">460800</option><option value="921600">921600</option></select>
       <div class="sectionheading filesheading"><div><h2>Firmware images</h2><p>One merged BIN at the correct offset, or multiple partition images.</p></div><button id="addFileBtn" class="secondary" type="button">+ Add BIN</button></div>
