@@ -1,0 +1,39 @@
+name: Check esptool-js releases
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 8 * * 1'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check latest stable Espressif esptool-js release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PINNED="$(python3 -c 'import json; print(json.load(open("vendor/esptool-js/0.7.0/manifest.json"))["version"])')"
+          LATEST="$(gh api repos/espressif/esptool-js/releases/latest --jq '.tag_name')"
+          echo "Pinned version: v${PINNED}"
+          echo "Latest release: ${LATEST}"
+          if [[ "${LATEST}" == "v${PINNED}" ]]; then
+            echo "No newer release to review."
+            echo "esptool-js v${PINNED} is the current stable release." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          TITLE="Review esptool-js ${LATEST}"
+          if gh issue list --state all --limit 200 --json title --jq '.[].title' | grep -Fqx -- "$TITLE"; then
+            echo "An issue for ${LATEST} already exists."
+          else
+            gh issue create --title "$TITLE" --body "Espressif published **esptool-js ${LATEST}**.\n\nDGVeLab Flash Center currently uses pinned **v${PINNED}**, hosted locally under \`vendor/esptool-js/${PINNED}/\`.\n\nRelease notes: https://github.com/espressif/esptool-js/releases/tag/${LATEST}\n\n**Do not upgrade automatically.** Check API changes and hardware-test USB connect, chip/MAC read, merge, firmware flash, and USB release before intentionally changing the pinned version."
+            echo "Created a review issue for ${LATEST}."
+          fi
+          echo "A new esptool-js version (${LATEST}) needs manual review; pinned v${PINNED} remains unchanged." >> "$GITHUB_STEP_SUMMARY"
