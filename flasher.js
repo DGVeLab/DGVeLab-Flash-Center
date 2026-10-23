@@ -65,6 +65,7 @@ async function autoReset(){
     unplugged=false;
     $("detectedChip").textContent="Disconnected after flash — ready for JoyDeck Hub.";
     $("chipDetails").hidden=true;
+    clearEfuse();
   }
   return resetMessage;
 }
@@ -73,6 +74,7 @@ function lostConnection(message){
  unplugged=true; loader=null;transport=null;port=null;
  $("detectedChip").textContent="USB disconnected. Reconnect to continue.";
  $("chipDetails").hidden=true;
+ clearEfuse();
  log(message);
  showResult("advancedResult","warning","USB disconnected","Reconnect the board before the next operation.");
  showResult("officialResult","warning","USB disconnected","Reconnect the board before the next operation.");
@@ -89,6 +91,7 @@ function sync() {
   $("autoOffsetsBtn").disabled = busy;
   $("mergeBtn").disabled = busy;
   $("readChipBtn").disabled = busy || !connected;
+  $("readEfuseBtn").disabled = busy || !connected || loader?.chip?.CHIP_NAME!=="ESP32";
   $("readPeerBtn").disabled = busy || peerBusy || !connected;
   $("writePeerBtn").disabled = busy || peerBusy || !connected;
   $("advancedLed").classList.toggle("connected",connected);
@@ -120,6 +123,7 @@ async function disconnect() {
     unplugged=false;
     $("detectedChip").textContent = "Connect an ESP device via USB.";
     $("chipDetails").hidden=true;
+    clearEfuse();
     sync();
   }
 }
@@ -138,6 +142,7 @@ $("connectBtn").addEventListener("click", async () => {
     stage="connected";
     $("detectedChip").textContent = chipName + " · " + $("baud").value + " baud";
     $("chipDetails").hidden=true;
+    clearEfuse();
     log("Connected. Detected chip: " + chipName);
     connectionAlert("");
     // Use only chip-supported choices, defaulting to non-destructive 'keep' settings.
@@ -364,6 +369,86 @@ $("mergeBtn").addEventListener("click",async()=>{
     showResult("advancedResult","error","Merge failed",e.message||String(e));
   }finally{busy=false;sync();}
 });
+/* Classic ESP32 eFuse BLK0: public system flags, no key/secret blocks.
+ * Registers and field offsets follow Espressif ESP32 TRM and eFuse table.
+ * The page does not expose eFuse write operations. */
+function clearEfuse(){
+  $("efuseResult").hidden=true;
+  $("efuseResult").textContent="";
+  $("efuseGrid").hidden=true;
+  $("efuseGrid").replaceChildren();
+  $("efuseRawDetails").hidden=true;
+  $("efuseRawDetails").open=false;
+  $("efuseRawOutput").textContent="";
+}
+function efuseFlag(words,bit){
+  return !!((words[Math.floor(bit/32)] >>> (bit%32)) & 1);
+}
+function efuseField(words,bit,width){
+  const w=words[Math.floor(bit/32)] >>> (bit%32);
+  return w & ((1<<width)-1);
+}
+function efuseCard(label,value,detail){
+  const card=document.createElement("div");card.className="efuse-card";
+  const name=document.createElement("span");name.className="efuse-label";name.textContent=label;
+  const current=document.createElement("strong");current.textContent=String(value);
+  card.append(name,current);
+  if(detail){
+    const note=document.createElement("small");note.textContent=detail;card.append(note);
+  }
+  $("efuseGrid").append(card);
+}
+function efuseStatus(value){return value?"Enabled":"Disabled";}
+$("readEfuseBtn").addEventListener("click",()=>action(async()=>{
+  clearEfuse();
+  if(loader?.chip?.CHIP_NAME!=="ESP32"||typeof loader.readReg!=="function"){
+    $("efuseResult").hidden=false;
+    $("efuseResult").textContent="This inspector supports classic ESP32 only. No registers were read.";
+    return;
+  }
+  // Only the seven public, read-only BLK0 registers are accessed:
+  // BLK1/BLK2 (cryptographic keys) and BLK3 (possible user data) are excluded.
+  const base=0x3ff5a000;
+  const words=[];
+  try{
+    for(let i=0;i<7;i++){
+      const value=Number(await loader.readReg(base+4*i));
+      if(!Number.isFinite(value))throw Error("Invalid register value at BLK0 word "+i);
+      words.push(value>>>0);
+    }
+  }catch(e){
+    $("efuseResult").hidden=false;
+    $("efuseResult").textContent="Could not read eFuse registers: "+(e.message||e);
+    log("eFuse Inspector read failed: "+(e.message||e));
+    return;
+  }
+  const cryptCount=efuseField(words,20,7);
+  const cryptEnabled=(cryptCount.toString(2).match(/1/g)||[]).length%2===1;
+  const secureV1=efuseFlag(words,196),secureV2=efuseFlag(words,197);
+  let mac="Unavailable";
+  try{
+    if(typeof loader.chip?.readMac==="function")mac=String(await loader.chip.readMac(loader));
+  }catch(e){log("eFuse MAC read unavailable: "+(e.message||e));}
+  efuseCard("Chip","ESP32","Classic ESP32 eFuse layout");
+  efuseCard("Factory MAC",mac);
+  efuseCard("Secure Boot",secureV1||secureV2?"Enabled":"Disabled",secureV2?"Secure Boot v2 flag set":secureV1?"Secure Boot v1 flag set":"No secure boot enable flag set");
+  efuseCard("Flash Encryption",efuseStatus(cryptEnabled),"FLASH_CRYPT_CNT 0x"+cryptCount.toString(16).toUpperCase().padStart(2,"0"));
+  efuseCard("JTAG",efuseFlag(words,198)?"Disabled by eFuse":"Not disabled by eFuse");
+  efuseCard("UART Download",efuseFlag(words,27)?"Disabled by eFuse":"Not disabled by eFuse","ESP32 revision-dependent eFuse");
+  efuseCard("Read Protection","0x"+efuseField(words,16,4).toString(16).toUpperCase(),"Protected blocks bitmask");
+  efuseCard("Write Protection","0x"+efuseField(words,0,16).toString(16).toUpperCase().padStart(4,"0"),"Protected eFuse fields bitmask");
+  efuseCard("UART Download Encryption",efuseFlag(words,199)?"Disabled by eFuse":"Not disabled by eFuse");
+  efuseCard("UART Download Decryption",efuseFlag(words,200)?"Disabled by eFuse":"Not disabled by eFuse");
+  $("efuseGrid").hidden=false;
+  $("efuseRawOutput").textContent=words.map((word,i)=>
+    "BLK0_RDATA"+i+"  0x"+(base+i*4).toString(16).toUpperCase()+"  0x"+word.toString(16).toUpperCase().padStart(8,"0")
+  ).join("\n");
+  $("efuseRawDetails").hidden=false;
+  $("efuseResult").hidden=false;
+  $("efuseResult").textContent="Read completed. System eFuse information only; no keys or user data were accessed.";
+  log("eFuse Inspector: read 7 BLK0 registers (classic ESP32, read only).");
+}));
+
 $("readChipBtn").addEventListener("click",()=>action(async()=>{
   const details=[["Chip",loader.chip?.CHIP_NAME||$("detectedChip").textContent]];
   try {
