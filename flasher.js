@@ -4,8 +4,8 @@ const $ = id => document.getElementById(id);
 let transport = null, loader = null, port = null, busy = false, rowId = 0;
 let selectedProject = null, selectedRelease = null, officialCatalog = null;
 let unplugged = false;
-let lastReadFactoryMac = "";
-let peerWriting = false;
+let peerPort=null, peerReader=null, peerWriter=null, peerPump=null;
+let peerWait=null, peerBusy=false, peerConnected=false;
 const logEl = $("activityLog");
 function log(message) {
   const time = new Date().toLocaleTimeString();
@@ -80,7 +80,7 @@ function lostConnection(message){
 }
 function sync() {
   const connected = !!loader && !unplugged;
-  $("connectBtn").disabled = busy || connected || !("serial" in navigator);
+  $("connectBtn").disabled = busy || connected || peerConnected || !("serial" in navigator);
   $("disconnectBtn").disabled = busy || !transport;
   $("flashBtn").disabled = busy || !connected;
   $("eraseBtn").disabled = busy || !connected;
@@ -89,18 +89,21 @@ function sync() {
   $("autoOffsetsBtn").disabled = busy;
   $("mergeBtn").disabled = busy;
   $("readChipBtn").disabled = busy || !connected;
-  $("useReadMacBtn").disabled = busy || peerWriting || !lastReadFactoryMac;
-  $("writePeerBtn").disabled = busy || peerWriting || connected || !("serial" in navigator);
+  $("readPeerBtn").disabled = busy || peerBusy || !peerConnected;
+  $("writePeerBtn").disabled = busy || peerBusy || !peerConnected;
   $("advancedLed").classList.toggle("connected",connected);
-  if ($("officialConnectBtn")) $("officialConnectBtn").disabled = busy || connected || !("serial" in navigator);
+  if ($("officialConnectBtn")) {
+    $("officialConnectBtn").disabled = busy || connected || !("serial" in navigator);
+    $("officialConnectBtn").textContent = peerConnected ? "Disconnect USB" : "Connect USB";
+  }
   if ($("officialInstallBtn")) $("officialInstallBtn").disabled = busy || !connected || !selectedRelease;
-  if ($("officialDeviceStatus")) $("officialDeviceStatus").textContent = connected ? $("detectedChip").textContent : busy ? "Connecting / programming…" : "Not connected";
-  if ($("officialLed")) $("officialLed").classList.toggle("connected",connected);
+  if ($("officialDeviceStatus")) $("officialDeviceStatus").textContent = peerConnected ? "Firmware serial · 115200 baud" : connected ? $("detectedChip").textContent : busy ? "Connecting / programming…" : "Not connected";
+  if ($("officialLed")) $("officialLed").classList.toggle("connected",connected||peerConnected);
   const projectSelect=$("officialProjectSelect");
   if (projectSelect) projectSelect.disabled=busy || !officialCatalog?.projects?.length;
   const versionSelect=$("officialRelease");
   if (versionSelect) versionSelect.disabled=busy || !selectedRelease;
-  $("deviceStatus").textContent = busy ? "Working…" : connected ? "Connected" : "Disconnected";
+  $("deviceStatus").textContent = busy ? "Working…" : connected ? "Connected" : peerConnected ? "Firmware serial active in Projects" : "Disconnected";
   document.querySelectorAll(".filerows input,.filerows button,.settingsgrid select,#baud").forEach(el => el.disabled = busy);
 }
 const terminal = {
@@ -394,120 +397,168 @@ $("readChipBtn").addEventListener("click",()=>action(async()=>{
   }
   container.hidden=false;
   const factory=details.find(([name])=>name==="Factory MAC")?.[1];
-  const normalized=normalizePeerMac(factory);
-  if(normalized){
-    lastReadFactoryMac=normalized;
-    $("peerMacInput").value=normalized;
-    log("Factory MAC available for ESP-NOW peer configuration: "+normalized);
-  }
   log("Chip info: "+details.map(([k,v])=>k+" = "+v).join("; "));
 }));
 
 
-/* ESP-NOW peer configuration for DGVeLab-compatible application firmware.
-   This is a runtime serial command, NOT an eFuse or hardware MAC write. */
+/* EspNowPeerProvisioner v1.2: GETPEER -> PEER <MAC> CH=n / PEER NONE,
+   SETPEER <MAC> CH=n -> OK SAVED VER=n (and optional reboot).
+   These are firmware-level settings, never hardware/eFuse MAC writes. */
 function normalizePeerMac(value){
   if(typeof value!=="string")return "";
-  const raw=value.trim().replace(/[:-]/g,"").toUpperCase();
-  if(!/^[0-9A-F]{12}$/.test(raw))return "";
-  return raw.match(/.{2}/g).join(":");
+  const compact=value.trim().replace(/[:-]/g,"").toUpperCase();
+  if(!/^[0-9A-F]{12}$/.test(compact))return "";
+  return compact.match(/.{2}/g).join(":");
 }
-$("useReadMacBtn").addEventListener("click",()=>{
-  if(!lastReadFactoryMac)return;
-  $("peerMacInput").value=lastReadFactoryMac;
-  clearResult("peerResult");
-});
-$("peerMacInput").addEventListener("input",()=>clearResult("peerResult"));
-
-async function peerSerialExchange(selectedPort, command, timeoutMs=5000){
-  let reader=null,writer=null;
-  let completed=false;
+function peerLine(line){
+  const value=line.trim();
+  if(!value)return;
+  log("Peer serial: "+value.slice(0,180));
+  if(peerWait&&peerWait.matches(value)){
+    const pending=peerWait;peerWait=null;
+    clearTimeout(pending.timer);
+    pending.resolve(value);
+  }
+}
+function rejectPeerWait(reason){
+  if(peerWait){
+    const pending=peerWait;peerWait=null;
+    clearTimeout(pending.timer);
+    pending.reject(reason instanceof Error?reason:new Error(String(reason)));
+  }
+}
+async function startPeerPump(){
+  const serial=peerPort;
+  let buffer="";
   try{
-    // Do not reuse the esptool transport: the target must run its normal firmware.
-    await selectedPort.open({baudRate:115200});
-    writer=selectedPort.writable.getWriter();
-    await writer.write(new TextEncoder().encode(command+"\n"));
-    writer.releaseLock();writer=null;
-    log("Peer command sent at 115200 baud: "+command);
-
-    reader=selectedPort.readable.getReader();
+    peerReader=serial.readable.getReader();
     const decoder=new TextDecoder();
-    let buffer="";
-    const deadline=Date.now()+timeoutMs;
-    while(Date.now()<deadline){
-      const ms=deadline-Date.now();
-      let timer;
-      const timeout=new Promise(resolve=>{timer=setTimeout(()=>resolve({timeout:true}),ms);});
-      let result;
-      try{result=await Promise.race([reader.read(),timeout]);}
-      finally{clearTimeout(timer);}
-      if(result?.timeout)break;
-      if(result.done)break;
-      buffer+=decoder.decode(result.value,{stream:true});
-      // Some ESP boot messages contain nonprintable bytes.
-      buffer=buffer.replace(/[^\x09\x0A\x0D\x20-\x7E]/g,"");
-      if(buffer.length>4096)buffer=buffer.slice(-4096);
-      const lines=buffer.split(/\r?\n|\r/);
+    while(peerConnected&&peerPort===serial){
+      const {value,done}=await peerReader.read();
+      if(done)break;
+      buffer+=decoder.decode(value,{stream:true});
+      buffer=buffer.replace(/[^\x09\x0A\x0D\x20-\x7E]/g,"").slice(-2048);
+      const lines=buffer.split(/\r\n|\n|\r/);
       buffer=lines.pop()||"";
-      for(const raw of lines){
-        const line=raw.trim();
-        if(!line)continue;
-        log("Peer response: "+line.slice(0,180));
-        if(/(?:^|\s)(?:ERR|ERROR|BADFMT)(?:\b|:)/i.test(line))
-          throw Error("Device rejected the command: "+line.slice(0,160));
-        if(/(?:^|\s)OK(?:\b|$)/i.test(line)){
-          completed=true;
-          return line.slice(0,160);
-        }
-      }
+      for(const line of lines)peerLine(line);
     }
-    throw Error("No confirmation received. Verify DGVeLab-compatible firmware, USB port, baud rate and reboot the target into normal operation.");
+  }catch(e){
+    if(peerConnected&&peerPort===serial)log("Peer serial read stopped: "+(e.message||e));
   }finally{
-    if(reader){
-      try{await reader.cancel();}catch{}
-      try{reader.releaseLock();}catch{}
+    try{peerReader?.releaseLock()}catch{}
+    peerReader=null;
+    if(peerPort===serial && peerConnected){
+      peerConnected=false;
+      rejectPeerWait(Error("Firmware serial connection closed."));
+      sync();
     }
-    if(writer){try{writer.releaseLock();}catch{}}
-    try{await selectedPort.close();}catch(e){log("Peer serial port close warning: "+(e.message||e));}
-    if(completed)log("ESP-NOW peer configuration confirmed by device.");
   }
 }
-
-$("writePeerBtn").addEventListener("click",async()=>{
-  if(busy||peerWriting)return;
-  if(loader||transport){
-    showResult("peerResult","warning","Disconnect first",
-      "Disconnect the flasher before using the target firmware serial port. Reset the board into normal operation.");
-    return;
+function waitPeerResponse(matches,ms=5000){
+  if(peerWait)throw Error("Another peer command is in progress.");
+  return new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>{
+      peerWait=null;
+      reject(Error("No response from the firmware. Check that it uses EspNowPeerProvisioner and is running at 115200 baud."));
+    },ms);
+    peerWait={matches,resolve,reject,timer};
+  });
+}
+async function sendPeerCommand(command,accept){
+  if(!peerConnected||!peerPort||!peerWriter)throw Error("Connect USB in firmware mode first.");
+  const waiting=waitPeerResponse(line=>accept.test(line)||/^UNKNOWN CMD\b|^ERR\b/i.test(line));
+  try{
+    await peerWriter.write(new TextEncoder().encode(command+"\n"));
+  }catch(e){
+    rejectPeerWait(e);
+    waiting.catch(()=>{});
+    throw e;
   }
+  const response=await waiting;
+  if(/^UNKNOWN CMD\b|^ERR\b/i.test(response))throw Error("Device rejected command: "+response);
+  return response;
+}
+async function closePeerPort(){
+  const serial=peerPort;
+  peerConnected=false;
+  rejectPeerWait(Error("USB disconnected."));
+  if(peerReader){try{await peerReader.cancel()}catch{}}
+  if(peerPump){try{await peerPump}catch{}}
+  if(peerWriter){try{peerWriter.releaseLock()}catch{}}
+  peerWriter=null;peerReader=null;peerPump=null;peerPort=null;
+  if(serial){try{await serial.close()}catch(e){log("Firmware serial close: "+(e.message||e))}}
+  sync();
+}
+async function togglePeerConnection(){
+  if(busy||peerBusy)return;
+  busy=true;sync();connectionAlert("");
+  let candidate=null;
+  try{
+    if(peerConnected){
+      await closePeerPort();
+      log("Firmware serial port disconnected.");
+      return;
+    }
+    if(loader||transport)throw Error("Disconnect the bootloader flasher in Advanced before using the firmware protocol.");
+    candidate=await navigator.serial.requestPort();
+    await candidate.open({baudRate:115200});
+    peerPort=candidate;
+    peerWriter=candidate.writable.getWriter();
+    peerConnected=true;
+    peerPump=startPeerPump();
+    log("Firmware serial connected at 115200 baud (GETPEER / SETPEER).");
+    showResult("peerResult","success","Firmware USB connected","Use Read or Write to access the saved ESP-NOW peer.");
+  }catch(e){
+    if(e?.name==="NotFoundError")log("Firmware USB selection canceled.");
+    else{
+      const message=connectionErrorMessage(e,"opening");
+      connectionAlert(message);
+      log("Firmware serial connection failed: "+(e.message||e));
+      showResult("peerResult","error","USB connection failed",message);
+    }
+    if(candidate&&candidate!==peerPort){try{await candidate.close()}catch{}}
+  }finally{busy=false;sync();}
+}
+$("peerTools").addEventListener("toggle",()=>sync());
+$("peerMacInput").addEventListener("input",()=>clearResult("peerResult"));
+$("readPeerBtn").addEventListener("click",async()=>{
+  if(!peerConnected||busy||peerBusy)return;
+  peerBusy=true;sync();clearResult("peerResult");
+  try{
+    const line=await sendPeerCommand("GETPEER",/^PEER(?: NONE| [0-9A-Fa-f:-]{12,17}\b)/);
+    if(/^PEER NONE\b/i.test(line)){
+      $("peerMacInput").value="";
+      showResult("peerResult","warning","No peer configured","The device has no saved peer address.");
+    }else{
+      const parsed=line.match(/^PEER\s+([0-9A-Fa-f:-]{12,17})\s+CH=(\d+)\b/i);
+      if(!parsed)throw Error("Unexpected GETPEER reply: "+line);
+      const mac=normalizePeerMac(parsed[1]);
+      if(!mac)throw Error("Invalid MAC returned by firmware.");
+      $("peerMacInput").value=mac;
+      const ch=Number(parsed[2]);
+      if(ch>=1&&ch<=13)$("peerChannel").value=String(ch);
+      showResult("peerResult","success","Peer read",mac+" · Channel "+ch);
+    }
+  }catch(e){
+    showResult("peerResult","error","Read failed",e.message||String(e));
+  }finally{peerBusy=false;sync();}
+});
+$("writePeerBtn").addEventListener("click",async()=>{
+  if(!peerConnected||busy||peerBusy)return;
   const mac=normalizePeerMac($("peerMacInput").value);
   const channel=Number($("peerChannel").value);
   if(!mac||!Number.isInteger(channel)||channel<1||channel>13){
-    showResult("peerResult","error","Invalid peer settings","Enter a valid MAC address and channel 1–13.");
+    showResult("peerResult","error","Invalid data","Enter a valid MAC address and channel (1–13).");
     return;
   }
-  const command="SETPEER "+mac+" CH="+channel;
-  if(!confirm("DGVeLab-compatible firmware only.\n\nSend to the TARGET device:\n"+command+
-       "\n\nThis saves the ESP-NOW peer configuration, NOT the factory MAC.\nMake sure the target firmware is running and the flasher is disconnected. Continue?"))return;
-  peerWriting=true;sync();clearResult("peerResult");
-  let target=null;
+  if(!confirm("Save ESP-NOW peer "+mac+" on channel "+channel+"?\nThe firmware may restart after saving."))return;
+  peerBusy=true;sync();clearResult("peerResult");
   try{
-    target=await navigator.serial.requestPort();
-    const response=await peerSerialExchange(target,command);
-    showResult("peerResult","success","Peer MAC saved",response+" · "+mac+" · Channel "+channel);
-  }catch(e){
-    if(e?.name==="NotFoundError"){
-      log("Peer MAC port selection canceled.");
-    }else{
-      const message=String(e.message||e);
-      log("ESP-NOW peer configuration failed: "+message);
-      showResult("peerResult","error","Peer MAC not confirmed",message);
-    }
-  }finally{
-    peerWriting=false;sync();
-  }
+    const response=await sendPeerCommand("SETPEER "+mac+" CH="+channel,/^OK SAVED VER=\d+\b/i);
+    showResult("peerResult","success","Peer saved",response+" · "+mac+" · Channel "+channel);
+  }catch(e){showResult("peerResult","error","Write not confirmed",e.message||String(e))}
+  finally{peerBusy=false;sync();}
 });
-
 $("clearLogBtn").addEventListener("click",()=>{logEl.textContent="Log cleared.";});
 if(!("serial" in navigator))log("Web Serial is unavailable. Open this page via HTTPS in desktop Chrome or Edge.");
 sync();
@@ -578,7 +629,10 @@ releaseEl.addEventListener("change",()=>{
   $("officialProgress").value=0;$("officialProgressLabel").textContent="0%";
   catalogUpdate();
 });
-$("officialConnectBtn").addEventListener("click",()=> $("connectBtn").click());
+$("officialConnectBtn").addEventListener("click",()=>{
+  if(peerConnected || $("peerTools").open) return togglePeerConnection();
+  if(!loader) $("connectBtn").click();
+});
 $("officialInstallBtn").addEventListener("click",()=>action(async()=>{
   clearResult("officialResult");
   if(!selectedProject || !selectedRelease || selectedRelease.published!==true)throw Error("No official firmware available.");
@@ -645,6 +699,9 @@ loadCatalog();
 
 if("serial" in navigator){
  navigator.serial.addEventListener("disconnect",event=>{
+   if(peerPort && (event.port===peerPort || event.target===peerPort)){
+     closePeerPort().catch(e=>log("Peer USB disconnect: "+(e.message||e)));
+   }
    if(port && (event.port===port || event.target===port))lostConnection("USB device physically disconnected.");
  });
 }
