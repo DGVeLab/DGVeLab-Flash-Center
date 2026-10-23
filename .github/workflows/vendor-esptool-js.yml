@@ -1,0 +1,45 @@
+name: Vendor esptool-js
+
+on:
+  push:
+    paths:
+      - '.github/workflows/vendor-esptool-js.yml'
+      - 'scripts/vendor_esptool_js.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: esptool-js-vendor
+  cancel-in-progress: false
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download and pin upstream browser bundle
+        run: python3 scripts/vendor_esptool_js.py
+      - name: Check JavaScript module syntax
+        run: |
+          cp vendor/esptool-js/0.7.0/bundle.js /tmp/esptool-js-bundle.mjs
+          node --check /tmp/esptool-js-bundle.mjs
+          cp flasher.js /tmp/dgvelab-flasher.mjs
+          node --check /tmp/dgvelab-flasher.mjs
+      - name: Commit pinned library and local import
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add vendor/esptool-js/0.7.0/ flasher.js index.html
+          if ! git diff --cached --quiet; then
+            git commit -m "Vendor pinned esptool-js 0.7.0 for independent browser flashing"
+            git push
+          else
+            echo "Pinned esptool-js already present; nothing to change."
+          fi
