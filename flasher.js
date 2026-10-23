@@ -89,21 +89,21 @@ function sync() {
   $("autoOffsetsBtn").disabled = busy;
   $("mergeBtn").disabled = busy;
   $("readChipBtn").disabled = busy || !connected;
-  $("readPeerBtn").disabled = busy || peerBusy || !peerConnected;
-  $("writePeerBtn").disabled = busy || peerBusy || !peerConnected;
+  $("readPeerBtn").disabled = busy || peerBusy || !connected;
+  $("writePeerBtn").disabled = busy || peerBusy || !connected;
   $("advancedLed").classList.toggle("connected",connected);
   if ($("officialConnectBtn")) {
-    $("officialConnectBtn").disabled = busy || (connected && !$("peerTools").open) || !("serial" in navigator);
-    $("officialConnectBtn").textContent = (peerConnected || (connected && $("peerTools").open)) ? "Disconnect USB" : "Connect USB";
+    $("officialConnectBtn").disabled = busy || connected || !("serial" in navigator);
+    $("officialConnectBtn").textContent = "Connect USB";
   }
   if ($("officialInstallBtn")) $("officialInstallBtn").disabled = busy || !connected || !selectedRelease;
-  if ($("officialDeviceStatus")) $("officialDeviceStatus").textContent = peerConnected ? "Firmware serial · 115200 baud" : connected ? $("detectedChip").textContent : busy ? "Connecting / programming…" : "Not connected";
-  if ($("officialLed")) $("officialLed").classList.toggle("connected",connected||peerConnected);
+  if ($("officialDeviceStatus")) $("officialDeviceStatus").textContent = connected ? $("detectedChip").textContent : busy ? "Connecting / programming…" : "Not connected";
+  if ($("officialLed")) $("officialLed").classList.toggle("connected",connected);
   const projectSelect=$("officialProjectSelect");
   if (projectSelect) projectSelect.disabled=busy || !officialCatalog?.projects?.length;
   const versionSelect=$("officialRelease");
   if (versionSelect) versionSelect.disabled=busy || !selectedRelease;
-  $("deviceStatus").textContent = busy ? "Working…" : connected ? "Connected" : peerConnected ? "Firmware serial active in Projects" : "Disconnected";
+  $("deviceStatus").textContent = busy ? "Working…" : connected ? "Connected" : "Disconnected";
   document.querySelectorAll(".filerows input,.filerows button,.settingsgrid select,#baud").forEach(el => el.disabled = busy);
 }
 const terminal = {
@@ -524,43 +524,57 @@ async function togglePeerConnection(){
 }
 $("peerTools").addEventListener("toggle",()=>sync());
 $("peerMacInput").addEventListener("input",()=>clearResult("peerResult"));
-$("readPeerBtn").addEventListener("click",async()=>{
-  if(!peerConnected||busy||peerBusy)return;
-  peerBusy=true;sync();clearResult("peerResult");
+$("readPeerBtn").addEventListener("click",()=>action(async()=>{
+  clearResult("peerResult");
+  if(typeof loader?.chip?.readMac!=="function")
+    throw Error("This chip does not support reading the factory MAC.");
   try{
-    const line=await sendPeerCommand("GETPEER",/^PEER(?: NONE| [0-9A-Fa-f:-]{12,17}\b)/);
-    if(/^PEER NONE\b/i.test(line)){
-      $("peerMacInput").value="";
-      showResult("peerResult","warning","No peer configured","The device has no saved peer address.");
-    }else{
-      const parsed=line.match(/^PEER\s+([0-9A-Fa-f:-]{12,17})\s+CH=(\d+)\b/i);
-      if(!parsed)throw Error("Unexpected GETPEER reply: "+line);
-      const mac=normalizePeerMac(parsed[1]);
-      if(!mac)throw Error("Invalid MAC returned by firmware.");
-      $("peerMacInput").value=mac;
-      const ch=Number(parsed[2]);
-      if(ch>=1&&ch<=13)$("peerChannel").value=String(ch);
-      showResult("peerResult","success","Peer read",mac+" · Channel "+ch);
-    }
+    const mac=normalizePeerMac(await loader.chip.readMac(loader));
+    if(!mac)throw Error("The chip returned an invalid MAC address.");
+    $("peerMacInput").value=mac;
+    showResult("peerResult","success","MAC read",mac);
+    log("Factory MAC read from chip: "+mac);
   }catch(e){
     showResult("peerResult","error","Read failed",e.message||String(e));
-  }finally{peerBusy=false;sync();}
-});
+    log("MAC read failed: "+(e.message||e));
+  }
+}));
 $("writePeerBtn").addEventListener("click",async()=>{
-  if(!peerConnected||busy||peerBusy)return;
+  if(!loader||busy||peerBusy)return;
   const mac=normalizePeerMac($("peerMacInput").value);
   const channel=Number($("peerChannel").value);
   if(!mac||!Number.isInteger(channel)||channel<1||channel>13){
     showResult("peerResult","error","Invalid data","Enter a valid MAC address and channel (1–13).");
     return;
   }
-  if(!confirm("Save ESP-NOW peer "+mac+" on channel "+channel+"?\nThe firmware may restart after saving."))return;
-  peerBusy=true;sync();clearResult("peerResult");
+  if(!confirm("Write peer MAC "+mac+" (channel "+channel+") to the connected device?\nThe device will switch to normal firmware mode and the USB connection will be released afterward."))return;
+  peerBusy=true;busy=true;sync();clearResult("peerResult");
+  const target=port;
   try{
-    const response=await sendPeerCommand("SETPEER "+mac+" CH="+channel,/^OK SAVED VER=\d+\b/i);
-    showResult("peerResult","success","Peer saved",response+" · "+mac+" · Channel "+channel);
-  }catch(e){showResult("peerResult","error","Write not confirmed",e.message||String(e))}
-  finally{peerBusy=false;sync();}
+    if(!target||!transport)throw Error("USB is not connected.");
+    // The esptool bootloader cannot process application-level SETPEER commands.
+    // Reset into user firmware, close the programming transport, then reopen
+    // the SAME selected port in standard 115200 baud application-serial mode.
+    try{await loader.after("hard_reset");}
+    catch(e){log("Reset signal warning: "+(e.message||e));}
+    await transport.disconnect();
+    transport=null;loader=null;port=null;unplugged=false;
+    $("detectedChip").textContent="Connect an ESP device via USB.";
+    sync();
+    await new Promise(resolve=>setTimeout(resolve,1100));
+    const response=await peerSerialExchange(target,"SETPEER "+mac+" CH="+channel);
+    showResult("peerResult","success","Peer MAC saved",response+" · "+mac+" · Channel "+channel);
+    log("Peer MAC write confirmed. Port released.");
+  }catch(e){
+    const message=e.message||String(e);
+    showResult("peerResult","error","Write not confirmed",message);
+    log("Peer MAC write failed: "+message);
+    // On a failed transition, do not leave the bootloader port held open.
+    if(transport){
+      try{await transport.disconnect();}catch{}
+      transport=null;loader=null;port=null;
+    }
+  }finally{peerBusy=false;busy=false;sync();}
 });
 $("clearLogBtn").addEventListener("click",()=>{logEl.textContent="Log cleared.";});
 if(!("serial" in navigator))log("Web Serial is unavailable. Open this page via HTTPS in desktop Chrome or Edge.");
@@ -632,22 +646,7 @@ releaseEl.addEventListener("change",()=>{
   $("officialProgress").value=0;$("officialProgressLabel").textContent="0%";
   catalogUpdate();
 });
-$("officialConnectBtn").addEventListener("click",async()=>{
-  if(peerConnected)return togglePeerConnection();
-  if(loader && $("peerTools").open && !busy){
-    busy=true;sync();
-    try{
-      await disconnect();
-      log("Flasher disconnected; reset the board to run its application before connecting firmware serial.");
-      showResult("peerResult","warning","Start application firmware",
-        "Flasher disconnected. Press EN/RST if necessary, then click Connect USB again.");
-    }catch(e){log("Disconnect error: "+(e.message||e))}
-    finally{busy=false;sync()}
-    return;
-  }
-  if($("peerTools").open)return togglePeerConnection();
-  if(!loader)$("connectBtn").click();
-});
+$("officialConnectBtn").addEventListener("click",()=>$("connectBtn").click());
 $("officialInstallBtn").addEventListener("click",()=>action(async()=>{
   clearResult("officialResult");
   if(!selectedProject || !selectedRelease || selectedRelease.published!==true)throw Error("No official firmware available.");
