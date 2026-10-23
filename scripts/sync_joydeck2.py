@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+"""Synchronize released JoyDeck 2 firmware with the DGVeLab Flash Center catalog.
+
+Invoked by GitHub Actions, not in the browser. Official release assets remain
+the source of truth; extracted merged firmware files are cached for GitHub Pages.
+Runs every six hours via GitHub Actions or by manual workflow_dispatch.
+"""
+import hashlib
+import json
+from pathlib import Path
+import re
+import subprocess
+import tempfile
+import urllib.request
+
+ROOT = Path(__file__).resolve().parents[1]
+CATALOG = ROOT / "firmware" / "catalog.json"
+OWNER_REPO = "DGVeLab/JoyDeck2"
+API = f"https://api.github.com/repos/{OWNER_REPO}/releases?per_page=30"
+TAG = re.compile(r"^SW(?P<hub>\d+\.\d+\.\d+)-FW(?P<fw>\d+\.\d+\.\d+)$", re.I)
+FIRMWARE = re.compile(r"\.(?:bin|dgv)$", re.I)
+ARCHIVE = re.compile(r"\.rar$", re.I)
+MAX_BYTES = 8 * 1024 * 1024
+
+
+def request_json(url):
+    req = urllib.request.Request(url, headers={
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "DGVeLab-Flash-Center-Sync/1.0",
+    })
+    with urllib.request.urlopen(req, timeout=45) as response:
+        return json.load(response)
+
+
+def download(url, path):
+    req = urllib.request.Request(url, headers={"User-Agent": "DGVeLab-Flash-Center-Sync/1.0"})
+    with urllib.request.urlopen(req, timeout=90) as response, path.open("wb") as target:
+        while True:
+            chunk = response.read(128 * 1024)
+            if not chunk:
+                break
+            target.write(chunk)
+            if target.tell() > MAX_BYTES:
+                raise ValueError(f"Unexpectedly large firmware asset: {url}")
+
+
+def extract_archive(archive, location):
+    # bsdtar supports RAR unpacking on the Ubuntu runner (libarchive-tools).
+    location.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["bsdtar", "-xf", str(archive), "-C", str(location)], check=True)
+    files = [p for p in location.rglob("*") if p.is_file() and FIRMWARE.search(p.name)]
+    if len(files) != 1:
+        raise ValueError(f"RAR must contain exactly one firmware .bin/.dgv, found {len(files)}")
+    return files[0]
+
+
+def verify_merged(image):
+    if not 0x10020 <= len(image) <= MAX_BYTES:
+        raise ValueError(f"Unexpected merged image size: {len(image)}")
+    if image[0x1000] != 0xE9 or image[0x10000] != 0xE9:
+        raise ValueError("Not a classic ESP32 merged image (missing bootloader/app headers)")
+    # We do not make assumptions about NVS preservation.
+    return hashlib.sha256(image).hexdigest()
+
+
+def main():
+    releases = request_json(API)
+    versions = {}
+    # GitHub releases are newest first. Only one Hub pairing per firmware version.
+    for rel in releases:
+        if rel.get("draft") or rel.get("prerelease"):
+            continue
+        m = TAG.fullmatch(rel.get("tag_name", ""))
+        if not m:
+            continue
+        version = m.group("fw")
+        if version in versions:
+            continue
+        assets = rel.get("assets", [])
+        matches = [a for a in assets if
+                   re.search(r"(?:JoyDeck|Firmware).*\.(?:bin|dgv|rar)$", a["name"], re.I)]
+        if not matches:
+            print("Skipping release without firmware:", rel["tag_name"])
+            continue
+        # Prefer directly provided merged binaries; otherwise extract the RAR.
+        direct = next((a for a in matches if FIRMWARE.search(a["name"])), None)
+        asset = direct or next((a for a in matches if ARCHIVE.search(a["name"])), None)
+        if asset:
+            versions[version] = (rel, asset, m.group("hub"))
+
+    if not versions:
+        raise RuntimeError("No compatible JoyDeck 2 release assets found.")
+
+    catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
+    project = next((p for p in catalog["projects"] if p["id"] == "joydeck2"), None)
+    if project is None:
+        project = {
+            "id": "joydeck2",
+            "name": "JoyDeck 2",
+            "chipFamily": "ESP32",
+            "description": "JoyDeck 2 firmware — paired with JoyDeck 2 Hub",
+            "status": "available",
+            "releases": [],
+        }
+        catalog["projects"].append(project)
+
+    existing = {release["version"]: release for release in project.get("releases", [])}
+    entries_by_version = dict(existing)
+    for version in sorted(versions, key=lambda v: tuple(map(int, v.split("."))), reverse=True):
+        rel, asset, hub = versions[version]
+        path = ROOT / "firmware" / "joydeck2" / version / "firmware-merged.bin"
+        known = existing.get(version)
+        cached = (known is not None and
+                  known.get("sourceTag") == rel["tag_name"] and
+                  path.is_file() and
+                  hashlib.sha256(path.read_bytes()).hexdigest() ==
+                  known.get("parts", [{}])[0].get("sha256"))
+
+        if cached:
+            digest = known["parts"][0]["sha256"]
+            size = path.stat().st_size
+            print(f"JD2 {version}: already imported, skipping asset download")
+        else:
+            with tempfile.TemporaryDirectory(prefix="joydeck-sync-") as temp:
+                folder = Path(temp)
+                archive = folder / asset["name"]
+                download(asset["browser_download_url"], archive)
+                image_path = extract_archive(archive, folder / "extracted") if ARCHIVE.search(asset["name"]) else archive
+                image = image_path.read_bytes()
+                digest = verify_merged(image)
+                size = len(image)
+
+            if path.exists() and hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+                raise ValueError(
+                    f"Firmware {version} has changed content; refusing to silently overwrite a published version."
+                )
+            if not path.exists():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(image)
+
+        print(f"JD2 {version}: {size} bytes, SHA256 {digest}, Hub {hub}")
+        entries_by_version[version] = {
+            "version": version,
+            "hubVersion": hub,
+            "channel": "stable",
+            "published": True,
+            "sourceRelease": rel["html_url"],
+            "sourceTag": rel["tag_name"],
+            "parts": [{
+                "path": f"./firmware/joydeck2/{version}/firmware-merged.bin",
+                "offset": 0,
+                "sha256": digest,
+            }],
+        }
+
+    project["releases"] = [
+        entries_by_version[version]
+        for version in sorted(entries_by_version, key=lambda v: tuple(map(int, v.split("."))), reverse=True)
+    ]
+    project["status"] = "available"
+    CATALOG.write_text(json.dumps(catalog, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+if __name__ == "__main__":
+    main()
