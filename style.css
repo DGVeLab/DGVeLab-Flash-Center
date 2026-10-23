@@ -172,3 +172,7 @@ button:not(:disabled){cursor:pointer}
  .advanced-actions{display:grid;grid-template-columns:1fr 1fr}
  .advanced-actions .primary{grid-column:1/-1}
 }
+
+/* Compact Advanced header: controls align directly beneath the mode tabs */
+.advanced-status{margin-top:13px;min-height:23px}
+.advanced-panel .filesheading{margin-top:23px}
