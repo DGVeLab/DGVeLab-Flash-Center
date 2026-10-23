@@ -56,19 +56,19 @@ Use **Advanced Flasher** when you need to program a local firmware file.
 
 The advanced tools also provide **Read chip info** (chip description, factory MAC address, flash ID and flash size where supported), **Reset**, **Erase Flash**, and a collapsible **activity log**. Chip information requires a USB connection; merging files does not.
 
-Factory MAC reading is generic; peer writing is supported only by DGVeLab-compatible runtime firmware and is kept in a clearly marked optional section.
+Factory MAC reading through **Read chip info** remains an Advanced Flasher diagnostic. Runtime **Read / Write** ESP-NOW peer configuration belongs to DGVeLab Projects and requires compatible firmware.
 
 ### ESP-NOW MAC / peer configuration
 
-The **Advanced Flasher → ESP-NOW · MAC / Peer configuration** section is available for devices running firmware that explicitly implements DGVeLab's serial `SETPEER` protocol.
+In **DGVeLab Projects**, expand **ESP-NOW · Peer MAC** to access the peer configuration stored by compatible DGVeLab firmware using the `EspNowPeerProvisioner` library.
 
-1. Connect the **source** ESP with **Connect USB**, then select **Read chip info** to obtain its **factory MAC**.
-2. The detected MAC is copied to the **Peer MAC address** field. You can also enter a MAC manually.
-3. Disconnect the flasher, connect the **target** ESP, and make sure its normal application firmware is running (reset the board if necessary).
-4. Choose the ESP-NOW channel (default **1**) and click **Write peer MAC**. Choose the target serial port in the browser.
-5. The browser sends `SETPEER AA:BB:CC:DD:EE:FF CH=1` at **115200 baud**, waits for a device confirmation and reports the result.
+1. Expand the ESP-NOW panel **before clicking Connect USB**. This selects the normal **firmware serial** connection at **115200 baud**, instead of the bootloader/programming connection.
+2. Click **Connect USB**, choose the device's port and ensure its normal application firmware is running. **Read** and **Write** become available while this USB connection is active.
+3. Click **Read** to send `GETPEER`. If the device replies `PEER AA:BB:CC:DD:EE:FF CH=6 ...`, its saved peer MAC fills the editable box and the channel selector updates. The device may instead reply `PEER NONE`.
+4. Edit the MAC and channel as needed, then click **Write**. The page sends `SETPEER AA:BB:CC:DD:EE:FF CH=6` and waits for `OK SAVED VER=n`. Compatible firmware may reboot automatically after saving.
+5. Click **Disconnect USB** when finished. To install firmware instead, close the ESP-NOW panel and connect the bootloader using the normal Projects **Connect USB** button.
 
-**This does not alter the factory hardware MAC or write ESP eFuses.** It only configures a peer address when the target firmware supports the command. A timeout does not guarantee that no changes were made, so check the target configuration before repeating. The browser releases the serial port after the operation.
+**Read returns the stored ESP-NOW peer configuration, not the device's factory hardware MAC.** The commands neither replace the factory MAC nor write eFuses. This feature works only if the running application firmware implements `EspNowPeerProvisioner::parseCommand()` for incoming serial lines. A timeout is not proof that a write was not saved.
 
 > **Warning:** Flash offsets depend on the firmware's memory layout. An incorrect offset, incompatible image, or erase operation can prevent the device from booting or permanently remove saved settings. Do not guess the addresses.
 
