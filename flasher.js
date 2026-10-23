@@ -93,8 +93,8 @@ function sync() {
   $("writePeerBtn").disabled = busy || peerBusy || !peerConnected;
   $("advancedLed").classList.toggle("connected",connected);
   if ($("officialConnectBtn")) {
-    $("officialConnectBtn").disabled = busy || connected || !("serial" in navigator);
-    $("officialConnectBtn").textContent = peerConnected ? "Disconnect USB" : "Connect USB";
+    $("officialConnectBtn").disabled = busy || (connected && !$("peerTools").open) || !("serial" in navigator);
+    $("officialConnectBtn").textContent = (peerConnected || (connected && $("peerTools").open)) ? "Disconnect USB" : "Connect USB";
   }
   if ($("officialInstallBtn")) $("officialInstallBtn").disabled = busy || !connected || !selectedRelease;
   if ($("officialDeviceStatus")) $("officialDeviceStatus").textContent = peerConnected ? "Firmware serial · 115200 baud" : connected ? $("detectedChip").textContent : busy ? "Connecting / programming…" : "Not connected";
@@ -629,9 +629,21 @@ releaseEl.addEventListener("change",()=>{
   $("officialProgress").value=0;$("officialProgressLabel").textContent="0%";
   catalogUpdate();
 });
-$("officialConnectBtn").addEventListener("click",()=>{
-  if(peerConnected || $("peerTools").open) return togglePeerConnection();
-  if(!loader) $("connectBtn").click();
+$("officialConnectBtn").addEventListener("click",async()=>{
+  if(peerConnected)return togglePeerConnection();
+  if(loader && $("peerTools").open && !busy){
+    busy=true;sync();
+    try{
+      await disconnect();
+      log("Flasher disconnected; reset the board to run its application before connecting firmware serial.");
+      showResult("peerResult","warning","Start application firmware",
+        "Flasher disconnected. Press EN/RST if necessary, then click Connect USB again.");
+    }catch(e){log("Disconnect error: "+(e.message||e))}
+    finally{busy=false;sync()}
+    return;
+  }
+  if($("peerTools").open)return togglePeerConnection();
+  if(!loader)$("connectBtn").click();
 });
 $("officialInstallBtn").addEventListener("click",()=>action(async()=>{
   clearResult("officialResult");
