@@ -72,6 +72,12 @@ Use **Peer Configuration** in the **DGVeLab Projects** tab to read a device's MA
 
 > **Warning:** Flash offsets depend on the firmware's memory layout. An incorrect offset, incompatible image, or erase operation can prevent the device from booting or permanently remove saved settings. Do not guess the addresses.
 
+### eFuse Inspector (read only)
+
+In **Advanced Flasher**, connect a **classic ESP32** with **Connect USB**, expand **eFuse Inspector** and click **Read eFuses**. The panel displays the factory MAC, Secure Boot, Flash Encryption, JTAG and download-mode indicators, plus read/write-protection masks. Expand **Raw system eFuse registers (BLK0)** for more diagnostic detail.
+
+This tool **only reads** system configuration. It cannot burn, erase or change eFuses. For unsupported ESP models, the inspector is unavailable. Cryptographic keys and private/user-data eFuse blocks are never read.
+
 ## Troubleshooting
 
 **No serial port appears**
