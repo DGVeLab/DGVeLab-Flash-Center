@@ -272,28 +272,40 @@ $("resetBtn").addEventListener("click",()=>action(async()=>{
 }));
 
 const mergeMaxSize=16*1024*1024;
-function proposeOffset(filename){
+function proposeOffset(filename, files){
   const name=filename.toLowerCase().replace(/[_\s-]+/g,"");
+  // Suggestions intentionally cover only the classic ESP32 Arduino/ESP-IDF layout.
   if(/bootloader/.test(name))return "0x1000";
   if(/bootapp0/.test(name))return "0xe000";
   if(/partition/.test(name))return "0x8000";
-  // Do not guess the address for application, filesystem or other binaries.
+  const names=files.map(f=>f.name.toLowerCase()).join(" ");
+  if(/^(firmware|app|application)\.bin$/i.test(filename) &&
+     /bootloader/.test(names) && /partition/.test(names))return "0x10000";
   return null;
 }
 $("autoOffsetsBtn").addEventListener("click",()=>{
   if(busy)return;
   const rows=[...$("fileRows").children];
   let changes=0,uncertain=[];
+  const files=rows.map(row=>row.querySelector(".binfile").files[0]).filter(Boolean);
+  if(files.length===0){
+    showResult("advancedResult","warning","No files selected","Choose BIN files before requesting offset suggestions.");
+    return;
+  }
+  if(loader && getChipFamily()!=="ESP32"){
+    showResult("advancedResult","warning","Manual offsets required","Automatic suggestions are currently limited to classic ESP32. Enter and verify offsets manually for other chips.");
+    return;
+  }
   for(const row of rows){
     const file=row.querySelector(".binfile").files[0];
     if(!file)continue;
-    const found=proposeOffset(file.name);
+    const found=proposeOffset(file.name,files);
     if(found){row.querySelector(".fileoffset").value=found;changes++;}
     else uncertain.push(file.name);
   }
   const note=changes+" known offset(s) suggested. "+
     (uncertain.length?"Set offsets manually for: "+uncertain.join(", ")+". ":"")+
-    "Verify all addresses against the firmware build before merging or flashing.";
+    "Suggested layout: classic ESP32 only. Verify every address against the firmware build before merging or flashing.";
   log(note);
   showResult("advancedResult","warning","Offsets need verification",note);
 });
