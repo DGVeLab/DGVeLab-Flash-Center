@@ -1,0 +1,41 @@
+name: Sync JoyDeck 2 releases
+
+on:
+  push:
+    paths:
+      - '.github/workflows/sync-joydeck2.yml'
+      - 'scripts/sync_joydeck2.py'
+  workflow_dispatch:
+  schedule:
+    - cron: '29 */6 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: joydeck2-release-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Install archive support
+        run: sudo apt-get update && sudo apt-get install -y libarchive-tools
+      - name: Import published JoyDeck 2 firmware
+        run: python3 scripts/sync_joydeck2.py
+      - name: Commit updated JoyDeck 2 firmware catalog
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add firmware/catalog.json firmware/joydeck2/
+          if ! git diff --cached --quiet; then
+            git commit -m "Sync JoyDeck 2 official firmware releases"
+            git pull --rebase
+            git push
+          else
+            echo "JoyDeck 2 firmware catalog already up to date."
+          fi
