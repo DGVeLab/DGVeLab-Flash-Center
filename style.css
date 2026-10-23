@@ -109,3 +109,66 @@ button:not(:disabled){cursor:pointer}
 .connection-alert{margin:14px 0 0;padding:13px 16px;border:1px solid #956837;border-radius:10px;background:#342719;color:#ffe0a7;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
 .connection-alert[hidden]{display:none}
 #advancedConnectionAlert{margin:-10px 0 22px}
+
+/* Advanced Flasher — compact, aligned beta layout */
+.advanced-panel{padding:26px 30px}
+.advanced-top{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:20px}
+.advanced-heading{display:flex;align-items:center;gap:12px}
+.advanced-heading h2{margin:0;font-size:22px}
+.advanced-connection{display:flex;align-items:center;gap:9px;font-size:13px;color:#b7c8e3;flex-wrap:wrap}
+#deviceStatus{font-weight:700;color:#edf3ff}
+#detectedChip{color:#a4b6d2}
+.advanced-controlbar{display:grid;grid-template-columns:minmax(130px,1fr) repeat(3,minmax(130px,auto));gap:11px;align-items:end}
+.advanced-setting label{margin:0 0 9px;font-size:13px}
+.advanced-controlbar select{width:100%;max-width:none;height:49px}
+.advanced-panel .primary,.advanced-panel .secondary,.advanced-panel .danger{min-height:49px;border-radius:10px;padding:11px 16px;font-size:13px;white-space:nowrap}
+.advanced-controlbar .primary{min-width:0}
+.chip-details{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:15px}
+.chip-details[hidden]{display:none}
+.chip-details>div{background:#17253c;border:1px solid #354968;border-radius:10px;padding:12px;min-width:0}
+.chip-details span{display:block;font-size:11px;color:#9db2d0;margin-bottom:7px}
+.chip-details strong{font-size:13px;word-break:break-word;font-weight:600}
+.advanced-panel .filesheading{margin-top:29px}
+.advanced-panel .filesheading h2{font-size:19px}
+.advanced-panel .filesheading p{margin:5px 0 15px;font-size:12px}
+.file-headings{display:grid;grid-template-columns:132px minmax(0,1fr) 94px;gap:12px;color:#aebfdb;font-size:12px;margin-bottom:8px}
+.advanced-panel .filerow{grid-template-columns:132px minmax(0,1fr) 94px;gap:12px}
+.advanced-panel .filerow input{min-height:48px;width:100%;max-width:none;font-size:13px}
+.advanced-panel .filerow button{width:100%;min-width:0;min-height:48px;padding:10px}
+.advanced-panel .filerow button[hidden]{display:none}
+.file-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:13px}
+.file-actions .secondary{min-height:42px;padding:9px 15px}
+.advanced-panel .hint{margin:9px 0 18px}
+.advanced-options{border:1px solid #2c3b55;border-radius:10px;background:#121e31;margin:12px 0 17px;padding:0 15px}
+.advanced-options summary{padding:13px 0;cursor:pointer;font-size:13px;font-weight:700;color:#b8cce7}
+.advanced-options[open]{padding-bottom:17px}
+.advanced-options .settingsgrid{gap:12px}
+.advanced-options .settingsgrid label{margin:8px 0 6px;font-size:12px}
+.advanced-options .settingsgrid select{height:46px}
+.advanced-actions{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}
+.advanced-actions .primary{min-width:190px}
+.advanced-panel .progressrow{margin:16px 0}
+.advanced-log{margin-top:23px;border-top:1px solid #2a3b55}
+.advanced-log summary{padding:16px 0;cursor:pointer;color:#b6c9e4;font-size:13px;font-weight:700}
+.log-tools{text-align:right;margin-bottom:10px}
+.advanced-panel #activityLog{margin:0 0 14px;max-height:260px}
+.advanced-warning{font-size:12px;color:#e9c893;background:#322916;border:1px solid #625035;border-radius:9px;padding:11px 13px;margin:20px 0 0}
+@media(max-width:760px){
+ .advanced-panel{padding:20px 16px}
+ .advanced-controlbar{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .advanced-controlbar button{min-width:0;white-space:normal}
+ .file-headings,.advanced-panel .filerow{grid-template-columns:105px minmax(0,1fr) 83px;gap:7px}
+ .advanced-panel .filerow input{font-size:12px}
+ .advanced-panel .filerow button{padding:6px}
+}
+@media(max-width:520px){
+ .advanced-controlbar{grid-template-columns:1fr 1fr}
+ .advanced-controlbar .advanced-setting{grid-column:1/-1}
+ .file-headings{display:none}
+ .advanced-panel .filerow{grid-template-columns:1fr;gap:7px;border:1px solid #31415b;padding:10px;border-radius:10px}
+ .advanced-panel .filerow button:not([hidden]){width:auto;justify-self:end;min-height:35px}
+ .file-actions{display:grid;grid-template-columns:1fr 1fr}
+ .file-actions button{min-width:0}
+ .advanced-actions{display:grid;grid-template-columns:1fr 1fr}
+ .advanced-actions .primary{grid-column:1/-1}
+}
