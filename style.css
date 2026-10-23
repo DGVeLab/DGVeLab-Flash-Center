@@ -104,3 +104,8 @@ button:not(:disabled){cursor:pointer}
  .install-actions .primary,.install-actions .secondary{min-width:0;padding:10px;font-size:12px;min-height:49px}
  .connection-info{font-size:12px}
 }
+
+/* USB port warnings — visible in both flashing modes */
+.connection-alert{margin:14px 0 0;padding:13px 16px;border:1px solid #956837;border-radius:10px;background:#342719;color:#ffe0a7;font-size:13px;line-height:1.6;overflow-wrap:anywhere}
+.connection-alert[hidden]{display:none}
+#advancedConnectionAlert{margin:-10px 0 22px}
