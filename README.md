@@ -60,15 +60,14 @@ Factory MAC reading through **Read chip info** remains an Advanced Flasher diagn
 
 ### ESP-NOW MAC / peer configuration
 
-In **DGVeLab Projects**, expand **ESP-NOW · Peer MAC** to access the peer configuration stored by compatible DGVeLab firmware using the `EspNowPeerProvisioner` library.
+The optional **ESP-NOW · Peer MAC** panel is under **DGVeLab Projects**.
 
-1. Expand the ESP-NOW panel **before clicking Connect USB**. This selects the normal **firmware serial** connection at **115200 baud**, instead of the bootloader/programming connection.
-2. Click **Connect USB**, choose the device's port and ensure its normal application firmware is running. **Read** and **Write** become available while this USB connection is active.
-3. Click **Read** to send `GETPEER`. If the device replies `PEER AA:BB:CC:DD:EE:FF CH=6 ...`, its saved peer MAC fills the editable box and the channel selector updates. The device may instead reply `PEER NONE`.
-4. Edit the MAC and channel as needed, then click **Write**. The page sends `SETPEER AA:BB:CC:DD:EE:FF CH=6` and waits for `OK SAVED VER=n`. Compatible firmware may reboot automatically after saving.
-5. Click **Disconnect USB** when finished. To install firmware instead, close the ESP-NOW panel and connect the bootloader using the normal Projects **Connect USB** button.
+1. Click **Connect USB** normally. The selected project/panel does not change how the initial USB connection is established.
+2. Click **Read** to retrieve the ESP chip's **factory hardware MAC** directly from the chip, regardless of the installed application firmware. The value fills the editable MAC field.
+3. If needed, edit the MAC and choose an ESP-NOW channel.
+4. Click **Write** to configure the connected target's peer address. The browser resets the chip into its installed application, releases the programming port, reopens the **same selected serial port** at 115200 baud and sends `SETPEER AA:BB:CC:DD:EE:FF CH=n`. A compatible firmware must reply with `OK SAVED VER=n`. The USB port is released afterward.
 
-**Read returns the stored ESP-NOW peer configuration, not the device's factory hardware MAC.** The commands neither replace the factory MAC nor write eFuses. This feature works only if the running application firmware implements `EspNowPeerProvisioner::parseCommand()` for incoming serial lines. A timeout is not proof that a write was not saved.
+**Read never changes the chip's hardware MAC.** **Write does not reprogram eFuses or change the device's factory MAC:** it only sets the peer address used by compatible application firmware. The write operation requires firmware supporting `EspNowPeerProvisioner`; if it times out, verify the actual stored settings before attempting another write.
 
 > **Warning:** Flash offsets depend on the firmware's memory layout. An incorrect offset, incompatible image, or erase operation can prevent the device from booting or permanently remove saved settings. Do not guess the addresses.
 
