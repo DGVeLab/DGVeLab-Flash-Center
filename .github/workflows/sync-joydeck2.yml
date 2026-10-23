@@ -31,7 +31,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add firmware/catalog.json firmware/joydeck2/
+          git add firmware/catalog.json
+          if [ -d firmware/joydeck2 ]; then git add firmware/joydeck2/; fi
           if ! git diff --cached --quiet; then
             git commit -m "Sync JoyDeck 2 official firmware releases"
             git pull --rebase
