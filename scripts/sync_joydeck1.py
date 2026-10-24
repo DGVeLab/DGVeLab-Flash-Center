@@ -7,6 +7,7 @@ Runs every six hours via GitHub Actions or by manual workflow_dispatch.
 """
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -24,10 +25,15 @@ MAX_BYTES = 8 * 1024 * 1024
 
 
 def request_json(url):
-    req = urllib.request.Request(url, headers={
+    headers = {
         "Accept": "application/vnd.github+json",
         "User-Agent": "DGVeLab-Flash-Center-Sync/1.0",
-    })
+    }
+    # Authenticate API requests on Actions; public downloads stay unauthenticated.
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=45) as response:
         return json.load(response)
 
